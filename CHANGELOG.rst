@@ -2,6 +2,9 @@
 Changelog for package mrpt_rawlog
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.1 (2024-05-28)
+------------------
+
 2.0.0 (2024-05-28)
 ------------------
 * rosbag2rawlog: BUGFIX: sensor poses were inverted
