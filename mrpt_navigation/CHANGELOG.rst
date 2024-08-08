@@ -2,6 +2,14 @@
 Changelog for package mrpt_navigation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.1.0 (2024-08-08)
+------------------
+* Merge branch 'ros2' into wip/port-tps-astar
+* Contributors: Jose Luis Blanco-Claraco
+
+2.0.1 (2024-05-28)
+------------------
+
 2.0.0 (2024-05-28)
 ------------------
 * Add new package mrpt_nav_interfaces with action and msg defintions for navigation
