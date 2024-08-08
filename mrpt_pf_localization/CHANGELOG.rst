@@ -2,6 +2,13 @@
 Changelog for package mrpt_pf_localization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.1.0 (2024-08-08)
+------------------
+* Fix GNSS name typo
+* Merge branch 'ros2' into wip/port-tps-astar
+* Merge branch 'ros2' into wip/port-tps-astar
+* Contributors: Jose Luis Blanco-Claraco
+
 2.0.1 (2024-05-28)
 ------------------
 
@@ -16,8 +23,8 @@ Changelog for package mrpt_pf_localization
 * code clean up; check convergence in unit test
 * Do not update the PF if there are no usable observations
 * use pf/m² to initialize; estimate twist
-* Expose gnns topic in the launch file
-* GNNS-based initialization
+* Expose gnss topic in the launch file
+* GNSS-based initialization
 * Comply with ROS2 REP-2003
 * use namespaces for launch files
 * allow overriding map likelihood options
