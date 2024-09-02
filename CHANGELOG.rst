@@ -2,6 +2,9 @@
 Changelog for package mrpt_navigation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.1.1 (2024-09-02)
+------------------
+
 2.1.0 (2024-08-08)
 ------------------
 * Merge branch 'ros2' into wip/port-tps-astar
