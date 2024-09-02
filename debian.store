@@ -1,1 +1,1 @@
-{"base": "5520bed", "parent": "debian/rolling/mrpt_pointcloud_pipeline", "previous": "f033efe", "trim": "", "trimbase": ""}
+{"base": "cfecde2", "parent": "debian/rolling/mrpt_pointcloud_pipeline", "previous": "34af083", "trim": "", "trimbase": ""}
