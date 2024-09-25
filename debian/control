@@ -1,0 +1,12 @@
+Source: ros-rolling-mrpt-reactivenav2d
+Section: misc
+Priority: optional
+Maintainer: Jose-Luis Blanco-Claraco <jlblanco@ual.es>
+Build-Depends: debhelper (>= 9.0.0), ros-rolling-ament-cmake, ros-rolling-ament-cmake-lint-cmake, ros-rolling-ament-cmake-xmllint, ros-rolling-ament-lint-auto, ros-rolling-geometry-msgs, ros-rolling-mrpt-libnav, ros-rolling-mrpt-libros-bridge, ros-rolling-mrpt-nav-interfaces, ros-rolling-nav-msgs, ros-rolling-rclcpp, ros-rolling-rclcpp-components, ros-rolling-sensor-msgs, ros-rolling-std-msgs, ros-rolling-stereo-msgs, ros-rolling-tf2, ros-rolling-tf2-geometry-msgs, ros-rolling-tf2-ros, ros-rolling-visualization-msgs, ros-rolling-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation
+Standards-Version: 3.9.2
+
+Package: ros-rolling-mrpt-reactivenav2d
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-rolling-ament-cmake-lint-cmake, ros-rolling-ament-cmake-xmllint, ros-rolling-ament-lint-auto, ros-rolling-geometry-msgs, ros-rolling-mrpt-libnav, ros-rolling-mrpt-libros-bridge, ros-rolling-mrpt-nav-interfaces, ros-rolling-nav-msgs, ros-rolling-rclcpp, ros-rolling-rclcpp-components, ros-rolling-sensor-msgs, ros-rolling-std-msgs, ros-rolling-stereo-msgs, ros-rolling-tf2, ros-rolling-tf2-geometry-msgs, ros-rolling-tf2-ros, ros-rolling-visualization-msgs, ros-rolling-ros-workspace
+Description: Reactive navigation for wheeled robots using MRPT navigation algorithms (TP-Space)
