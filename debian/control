@@ -1,0 +1,13 @@
+Source: ros-rolling-mrpt-pf-localization
+Section: misc
+Priority: optional
+Maintainer: Markus Bader <markus.bader@tuwien.ac.at>
+Build-Depends: debhelper (>= 9.0.0), cmake, ros-rolling-ament-cmake, ros-rolling-ament-cmake-lint-cmake, ros-rolling-ament-cmake-xmllint, ros-rolling-ament-lint-auto, ros-rolling-mola-relocalization, ros-rolling-mp2p-icp, ros-rolling-mrpt-libgui, ros-rolling-mrpt-libros-bridge, ros-rolling-mrpt-libslam, ros-rolling-mrpt-msgs, ros-rolling-mrpt-msgs-bridge, ros-rolling-mrpt-tutorials <!nocheck>, ros-rolling-nav-msgs, ros-rolling-pose-cov-ops, ros-rolling-rclcpp, ros-rolling-sensor-msgs, ros-rolling-std-msgs, ros-rolling-tf2, ros-rolling-tf2-geometry-msgs, ros-rolling-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation/tree/ros2/mrpt_pf_localization
+Standards-Version: 3.9.2
+
+Package: ros-rolling-mrpt-pf-localization
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-rolling-ament-cmake-lint-cmake, ros-rolling-ament-cmake-xmllint, ros-rolling-ament-lint-auto, ros-rolling-mola-relocalization, ros-rolling-mp2p-icp, ros-rolling-mrpt-libgui, ros-rolling-mrpt-libros-bridge, ros-rolling-mrpt-libslam, ros-rolling-mrpt-msgs, ros-rolling-mrpt-msgs-bridge, ros-rolling-nav-msgs, ros-rolling-pose-cov-ops, ros-rolling-rclcpp, ros-rolling-sensor-msgs, ros-rolling-std-msgs, ros-rolling-tf2, ros-rolling-tf2-geometry-msgs, ros-rolling-ros-workspace
+Description: Package for robot 2D self-localization using dynamic or static (MRPT or ROS) maps.
+ The interface is similar to amcl (https://wiki.ros.org/amcl) but supports different particle-filter algorithms, several grid maps at different heights, range-only localization, etc.
