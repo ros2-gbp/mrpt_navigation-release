@@ -1,0 +1,12 @@
+Source: ros-rolling-mrpt-rawlog
+Section: misc
+Priority: optional
+Maintainer: Markus Bader <markus.bader@tuwien.ac.at>
+Build-Depends: debhelper (>= 9.0.0), cmake, ros-rolling-ament-cmake, ros-rolling-ament-cmake-lint-cmake, ros-rolling-ament-cmake-xmllint, ros-rolling-ament-lint-auto, ros-rolling-cv-bridge, ros-rolling-mrpt-libros-bridge, ros-rolling-mrpt-libtclap, ros-rolling-mrpt-msgs, ros-rolling-nav-msgs, ros-rolling-rosbag2-cpp, ros-rolling-sensor-msgs, ros-rolling-tf2-geometry-msgs, ros-rolling-tf2-msgs, ros-rolling-tf2-ros, ros-rolling-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation
+Standards-Version: 3.9.2
+
+Package: ros-rolling-mrpt-rawlog
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-rolling-ament-cmake-lint-cmake, ros-rolling-ament-cmake-xmllint, ros-rolling-ament-lint-auto, ros-rolling-cv-bridge, ros-rolling-mrpt-libros-bridge, ros-rolling-mrpt-libtclap, ros-rolling-mrpt-msgs, ros-rolling-nav-msgs, ros-rolling-rosbag2-cpp, ros-rolling-sensor-msgs, ros-rolling-tf2-geometry-msgs, ros-rolling-tf2-msgs, ros-rolling-tf2-ros, ros-rolling-ros-workspace
+Description: Nodes and programs to record and play MRPT rawlogs or to transform between rosbags and rawlogs.
