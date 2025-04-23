@@ -1,0 +1,13 @@
+Source: ros-kilted-mrpt-pf-localization
+Section: misc
+Priority: optional
+Maintainer: Markus Bader <markus.bader@tuwien.ac.at>
+Build-Depends: debhelper (>= 9.0.0), cmake, ros-kilted-ament-cmake, ros-kilted-ament-cmake-lint-cmake, ros-kilted-ament-cmake-xmllint, ros-kilted-ament-lint-auto, ros-kilted-mola-relocalization, ros-kilted-mp2p-icp, ros-kilted-mrpt-libgui, ros-kilted-mrpt-libros-bridge, ros-kilted-mrpt-libslam, ros-kilted-mrpt-msgs, ros-kilted-mrpt-msgs-bridge, ros-kilted-mrpt-tutorials <!nocheck>, ros-kilted-nav-msgs, ros-kilted-pose-cov-ops, ros-kilted-rclcpp, ros-kilted-sensor-msgs, ros-kilted-std-msgs, ros-kilted-tf2, ros-kilted-tf2-geometry-msgs, ros-kilted-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation/tree/ros2/mrpt_pf_localization
+Standards-Version: 3.9.2
+
+Package: ros-kilted-mrpt-pf-localization
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-kilted-ament-cmake-lint-cmake, ros-kilted-ament-cmake-xmllint, ros-kilted-ament-lint-auto, ros-kilted-mola-relocalization, ros-kilted-mp2p-icp, ros-kilted-mrpt-libgui, ros-kilted-mrpt-libros-bridge, ros-kilted-mrpt-libslam, ros-kilted-mrpt-msgs, ros-kilted-mrpt-msgs-bridge, ros-kilted-nav-msgs, ros-kilted-pose-cov-ops, ros-kilted-rclcpp, ros-kilted-sensor-msgs, ros-kilted-std-msgs, ros-kilted-tf2, ros-kilted-tf2-geometry-msgs, ros-kilted-ros-workspace
+Description: Package for robot 2D self-localization using dynamic or static (MRPT or ROS) maps.
+ The interface is similar to amcl (https://wiki.ros.org/amcl) but supports different particle-filter algorithms, several grid maps at different heights, range-only localization, etc.
