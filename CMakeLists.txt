@@ -15,6 +15,8 @@ find_package(sensor_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(mp2p_icp_map REQUIRED)
 find_package(mp2p_icp_filters REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(mola_relocalization) # OPTIONAL
 
 find_package(mrpt-ros2bridge REQUIRED)
@@ -42,14 +44,15 @@ message(STATUS "mola_relocalization_FOUND: ${mola_relocalization_FOUND}")
 ###########
 
 # non-ROS C++ library:
-add_library(${PROJECT_NAME}_core
+add_library(${PROJECT_NAME}_core SHARED
     src/${PROJECT_NAME}/${PROJECT_NAME}_core.cpp
     include/${PROJECT_NAME}/${PROJECT_NAME}_core.h
 )
 
 target_include_directories(${PROJECT_NAME}_core
     PUBLIC
-    include
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>  
+    $<INSTALL_INTERFACE:include/>
 )
 
 target_link_libraries(${PROJECT_NAME}_core
@@ -69,43 +72,80 @@ endif()
 
 # ROS node:
 add_executable(${PROJECT_NAME}_node
-    src/${PROJECT_NAME}_node.cpp
-    include/${PROJECT_NAME}_node.h
+  src/main.cpp
+  include/${PROJECT_NAME}_node.h
 )
 
-ament_target_dependencies(${PROJECT_NAME}_node
-    rclcpp
-    geometry_msgs
-    mrpt_msgs
-    mrpt_msgs_bridge
-    nav_msgs
-    pose_cov_ops
-    sensor_msgs
-    tf2
-    tf2_geometry_msgs
-)
-
-target_include_directories(${PROJECT_NAME}_node
-    PRIVATE
-    include
-)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node
+target_link_libraries(${PROJECT_NAME}_node PRIVATE
   ${PROJECT_NAME}_core
   mrpt::gui
   mrpt::slam
   mrpt::ros2bridge
+  rclcpp::rclcpp
+  ${rclcpp_components_TARGETS}
+  tf2::tf2
+  ${pose_cov_ops_TARGETS}
+  ${geometry_msgs_TARGETS}
+  ${mrpt_msgs_TARGETS}
+  ${mrpt_msgs_bridge_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${tf2_geometry_msgs_TARGETS}
 )
+
+target_include_directories(${PROJECT_NAME}_node
+  PRIVATE
+  include
+)
+
+#######################
+# ROS composable node #
+#######################
+
+add_library(${PROJECT_NAME}_component SHARED
+    src/${PROJECT_NAME}_component.cpp
+    include/${PROJECT_NAME}_node.h
+)
+
+target_link_libraries(${PROJECT_NAME}_component PRIVATE
+  ${PROJECT_NAME}_core
+  mrpt::gui
+  mrpt::slam
+  mrpt::ros2bridge
+  rclcpp::rclcpp
+  ${rclcpp_components_TARGETS}
+  tf2::tf2
+  ${pose_cov_ops_TARGETS}
+  ${geometry_msgs_TARGETS}
+  ${mrpt_msgs_TARGETS}
+  ${mrpt_msgs_bridge_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${tf2_geometry_msgs_TARGETS}
+)
+
+target_include_directories(${PROJECT_NAME}_component
+  PRIVATE
+  include
+)
+
+rclcpp_components_register_node(
+  ${PROJECT_NAME}_component
+  PLUGIN "PFLocalizationNode"
+  EXECUTABLE ${PROJECT_NAME}_composable
+)
+
+ament_export_targets(export_${PROJECT_NAME})
 
 #############
 ## Install ##
 #############
 
-install(
-  TARGETS
-    ${PROJECT_NAME}_core
-    ${PROJECT_NAME}_node
+install(TARGETS ${PROJECT_NAME}_component ${PROJECT_NAME}_core ${PROJECT_NAME}_node
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
   DESTINATION
     lib/${PROJECT_NAME}
 )
@@ -114,7 +154,6 @@ install(
   DIRECTORY launch params
   DESTINATION share/${PROJECT_NAME}
 )
-
 
 ament_export_dependencies()
 
