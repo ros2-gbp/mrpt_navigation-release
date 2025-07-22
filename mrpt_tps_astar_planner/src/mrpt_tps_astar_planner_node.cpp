@@ -36,8 +36,6 @@
 #include <mrpt/system/datetime.h>
 #include <mrpt/system/filesystem.h>
 #include <mrpt/system/string_utils.h>
-#include <tf2/LinearMath/Matrix3x3.h>
-#include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -60,6 +58,8 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <string>
+#include <tf2/LinearMath/Matrix3x3.hpp>
+#include <tf2/LinearMath/Quaternion.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 // for debugging
@@ -396,15 +396,16 @@ bool TPS_Astar_Planner_Node::wait_for_transform(
 		tf2::fromMsg(src_to_trg_frame.transform, tf);
 		des = mrpt::ros2bridge::fromROS(tf);
 
-		RCLCPP_DEBUG(
-			get_logger(), "[wait_for_transform] Found pose %s -> %s: %s", source_frame.c_str(),
-			target_frame.c_str(), des.asString().c_str());
+		RCLCPP_DEBUG_THROTTLE(
+			get_logger(), *get_clock(), 5000, "[wait_for_transform] Found pose %s -> %s: %s",
+			source_frame.c_str(), target_frame.c_str(), des.asString().c_str());
 
 		return true;
 	}
 	catch (const tf2::TransformException& ex)
 	{
-		RCLCPP_ERROR(get_logger(), "[wait_for_transform] %s", ex.what());
+		RCLCPP_ERROR_THROTTLE(
+			get_logger(), *get_clock(), 5000, "[wait_for_transform] %s", ex.what());
 		return false;
 	}
 }
@@ -587,8 +588,9 @@ void TPS_Astar_Planner_Node::callback_map(
 void TPS_Astar_Planner_Node::callback_obstacles(
 	const sensor_msgs::msg::PointCloud2::SharedPtr& pc, InfoPerPointMapSource& e)
 {
-	RCLCPP_INFO_STREAM(
-		this->get_logger(), "Received obstacle points from topic: " << e.sub->get_topic_name());
+	RCLCPP_INFO_STREAM_THROTTLE(
+		this->get_logger(), *this->get_clock(), 5000,
+		"Received obstacle points from topic: " << e.sub->get_topic_name());
 
 	update_obstacles(pc, e);
 }
@@ -607,21 +609,13 @@ void TPS_Astar_Planner_Node::update_obstacles(
 	// Transform the cloud to its global pose in the map:
 	mrpt::poses::CPose3D sensorPoseInMap;
 
-	// Brief pause to allow time for the transform data to become available
-	const auto timeout = std::chrono::milliseconds(50);
-	const auto tStart = this->now();
-	const double max_duration = 5.0;  // seconds
-
-	while (!wait_for_transform(sensorPoseInMap, pcMsg->header.frame_id, frame_id_map_))
+	// Update fields only when transform data to become available
+	if (wait_for_transform(sensorPoseInMap, pcMsg->header.frame_id, frame_id_map_))
 	{
-		std::this_thread::sleep_for(timeout);
-		auto duration = this->get_clock()->now() - tStart;
-		ASSERT_(duration.seconds() < max_duration);
+		pc->changeCoordinatesReference(sensorPoseInMap);
+
+		e.obstacle_points = pc;
 	}
-
-	pc->changeCoordinatesReference(sensorPoseInMap);
-
-	e.obstacle_points = pc;
 }
 
 void TPS_Astar_Planner_Node::publish_waypoint_sequence(const mrpt_msgs::msg::WaypointSequence& wps)
@@ -815,20 +809,19 @@ TPS_Astar_Planner_Node::PlanResult TPS_Astar_Planner_Node::do_path_plan(
 	}
 #endif
 
-	if (!plan.success)
-	{
-		planner_->costEvaluators_.clear();
-	}
+	// TODO(jlbc) Why? Remove? if (!plan.success) planner_->costEvaluators_.clear();
 
 	// backtrack:
 	auto [plannedPath, pathEdges] = plan.motionTree.backtrack_path(*plan.bestNodeId);
 
 	// refine trajectory:
 	if (!astar_skip_refine_)
+	{
 		mpp::refine_trajectory(plannedPath, pathEdges, plan.originalInput.ptgs);
+	}
 
 	// Show plan in a GUI for debugging
-	if (plan.success && gui_mrpt_)
+	if (gui_mrpt_)
 	{
 		mpp::VisualizationOptions vizOpts;
 
@@ -842,7 +835,7 @@ TPS_Astar_Planner_Node::PlanResult TPS_Astar_Planner_Node::do_path_plan(
 
 	// Interpolate so we have many waypoints:
 	mpp::trajectory_t interpPath;
-	if (plan.success)
+	if (!pathEdges.empty())
 	{
 		const double interpPeriod = 0.25;  // [s]
 
@@ -861,37 +854,34 @@ TPS_Astar_Planner_Node::PlanResult TPS_Astar_Planner_Node::do_path_plan(
 	res.valid = plan.success;
 	res.plan_output = plan;
 
-	if (plan.success)
+	for (const auto& [time, kin_state] : interpPath)
 	{
-		for (auto& kv : interpPath)
-		{
-			const auto& goal_state = kv.second.state;
+		const auto& goal_state = kin_state.state;
 #if 0
 			std::cout << "Waypoint: x = " << goal_state.pose.x
 					  << ", y= " << goal_state.pose.y << std::endl;
 #endif
-			auto wp_msg = mrpt_msgs::msg::Waypoint();
-			wp_msg.target = mrpt::ros2bridge::toROS_Pose(goal_state.pose);
-
-			wp_msg.allowed_distance = mid_waypoints_allowed_distance_;
-			wp_msg.allow_skip = mid_waypoints_allow_skip_;
-			wp_msg.ignore_heading = mid_waypoints_ignore_heading_;
-
-			res.wps.waypoints.push_back(wp_msg);
-		}
-
 		auto wp_msg = mrpt_msgs::msg::Waypoint();
-		wp_msg.target = mrpt::ros2bridge::toROS_Pose(goal);
+		wp_msg.target = mrpt::ros2bridge::toROS_Pose(goal_state.pose);
 
-		wp_msg.allowed_distance = final_waypoint_allowed_distance_;
-		wp_msg.allow_skip = final_waypoint_allow_skip_;
-		wp_msg.ignore_heading = final_waypoint_ignore_heading_;
+		wp_msg.allowed_distance = mid_waypoints_allowed_distance_;
+		wp_msg.allow_skip = mid_waypoints_allow_skip_;
+		wp_msg.ignore_heading = mid_waypoints_ignore_heading_;
 
 		res.wps.waypoints.push_back(wp_msg);
-
-		res.wps.header.frame_id = frame_id_map_;
-		res.wps.header.stamp = this->now();
 	}
+
+	auto wp_msg = mrpt_msgs::msg::Waypoint();
+	wp_msg.target = mrpt::ros2bridge::toROS_Pose(goal);
+
+	wp_msg.allowed_distance = final_waypoint_allowed_distance_;
+	wp_msg.allow_skip = final_waypoint_allow_skip_;
+	wp_msg.ignore_heading = final_waypoint_ignore_heading_;
+
+	res.wps.waypoints.push_back(wp_msg);
+
+	res.wps.header.frame_id = frame_id_map_;
+	res.wps.header.stamp = this->now();
 
 	return res;
 }
@@ -932,12 +922,8 @@ void TPS_Astar_Planner_Node::srv_make_plan_from_to(
 		const auto p = mrpt::ros2bridge::fromROS(req->target);
 		const auto nav_goal = mrpt::math::TPose2D(p.asTPose());
 
-		mrpt::poses::CPose3D robot_pose;
-		const bool robot_pose_ok = wait_for_transform(robot_pose, frame_id_robot_, frame_id_map_);
-
-		ASSERT_(robot_pose_ok);
-
-		const auto start_pose = mrpt::poses::CPose2D(robot_pose).asTPose();
+		const auto p0 = mrpt::ros2bridge::fromROS(req->start);
+		const auto start_pose = mrpt::math::TPose2D(p0.asTPose());
 
 		const auto res = do_path_plan(start_pose, nav_goal);
 
