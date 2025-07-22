@@ -42,8 +42,8 @@ ENDIF()
 find_package(mp2p_icp_filters REQUIRED)
 
 add_executable(${PROJECT_NAME}_node
-              src/mrpt_pointcloud_pipeline_node.cpp
-              include/mrpt_pointcloud_pipeline/mrpt_pointcloud_pipeline_node.h)
+              src/main.cpp
+              include/${PROJECT_NAME}/mrpt_pointcloud_pipeline_node.h)
 
 target_include_directories(${PROJECT_NAME}_node
                            PUBLIC
@@ -52,26 +52,65 @@ target_include_directories(${PROJECT_NAME}_node
 )
 
 target_link_libraries(
-  ${PROJECT_NAME}_node
+  ${PROJECT_NAME}_node PRIVATE
   mrpt::maps
   mrpt::obs
   mrpt::gui
   mrpt::ros2bridge
   mola::mp2p_icp_filters
+  rclcpp::rclcpp
+  ${rclcpp_components_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  tf2::tf2
+  ${tf2_geometry_msgs_TARGETS}
 )
 
-ament_target_dependencies(
-  ${PROJECT_NAME}_node
-  rclcpp
-  rclcpp_components
-  nav_msgs
-  sensor_msgs
-  tf2
-  tf2_geometry_msgs
+###################
+# Composable node #
+###################
+
+add_library(${PROJECT_NAME}_component SHARED
+              src/${PROJECT_NAME}_component.cpp
+              include/${PROJECT_NAME}/${PROJECT_NAME}_node.h)
+
+target_include_directories(${PROJECT_NAME}_component
+                           PUBLIC
+                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                            $<INSTALL_INTERFACE:include>
 )
 
+target_link_libraries(
+  ${PROJECT_NAME}_component PRIVATE
+  mrpt::maps
+  mrpt::obs
+  mrpt::gui
+  mrpt::ros2bridge
+  mola::mp2p_icp_filters
+  rclcpp::rclcpp
+  ${rclcpp_components_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  tf2::tf2
+  ${tf2_geometry_msgs_TARGETS}
+)
 
-install(TARGETS ${PROJECT_NAME}_node
+rclcpp_components_register_node(
+  ${PROJECT_NAME}_component
+  PLUGIN "LocalObstaclesNode"
+  EXECUTABLE ${PROJECT_NAME}_composable
+)
+
+###########
+# INSTALL #
+###########
+
+install(TARGETS ${PROJECT_NAME}_component
+                ${PROJECT_NAME}_node
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
   DESTINATION lib/${PROJECT_NAME}
 )
 
