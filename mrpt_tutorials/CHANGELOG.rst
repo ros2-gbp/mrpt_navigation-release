@@ -2,6 +2,9 @@
 Changelog for package mrpt_tutorials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.3 (2025-07-22)
+------------------
+
 2.2.2 (2025-05-28)
 ------------------
 * Fix tutorial demo launchs missing 'use_composable' argument
