@@ -2,6 +2,16 @@
 Changelog for package mrpt_rawlog
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.3 (2025-07-22)
+------------------
+* FIX: Build against recent tf2 versions
+* Contributors: Jose Luis Blanco-Claraco
+
+2.2.2 (2025-05-28)
+------------------
+* FIX: remove usage of obsolete ament_target_dependencies()
+* Contributors: Jose Luis Blanco-Claraco
+
 2.2.1 (2024-10-12)
 ------------------
 
