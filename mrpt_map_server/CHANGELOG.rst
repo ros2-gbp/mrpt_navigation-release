@@ -2,6 +2,9 @@
 Changelog for package mrpt_map_server
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.3 (2025-07-22)
+------------------
+
 2.2.2 (2025-05-28)
 ------------------
 * FIX: remove usage of obsolete ament_target_dependencies()
