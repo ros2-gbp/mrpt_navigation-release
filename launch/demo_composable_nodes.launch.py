@@ -6,7 +6,8 @@
 from launch import LaunchDescription
 from launch.substitutions import TextSubstitution
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import Node, ComposableNodeContainer
+from launch.conditions import IfCondition
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from ament_index_python import get_package_share_directory
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -17,18 +18,20 @@ def generate_launch_description():
     tutsDir = get_package_share_directory("mrpt_tutorials")
     # print('tutsDir       : ' + tutsDir)
 
-    mrpt_astar_planner_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('mrpt_tps_astar_planner'), 'launch',
-            'tps_astar_planner.launch.py')]),
-        launch_arguments={
-            'topic_goal_sub': '/goal_pose',
-            'show_gui': 'False',
-            'topic_obstacles_gridmap_sub': '/mrpt_map/map_gridmap',
-            'topic_static_maps': '/mrpt_map/map_gridmap',
-            'topic_wp_seq_pub': '/waypoints',
-            # 'problem_world_bbox_ignore_obstacles': 'True',
-        }.items()
+    use_composable = LaunchConfiguration('use_composable')
+
+    use_composable_arg = DeclareLaunchArgument(
+        'use_composable',
+        default_value='false',
+    )
+
+    container = ComposableNodeContainer(
+        condition = IfCondition(use_composable),
+        name='demo_composable_container',
+        package = 'rclcpp_components',
+        executable = 'component_container',
+        namespace = '',
+        output = 'screen',
     )
 
     mrpt_map_launch = IncludeLaunchDescription(
@@ -60,7 +63,10 @@ def generate_launch_description():
             get_package_share_directory('mrpt_pointcloud_pipeline'), 'launch',
             'pointcloud_pipeline.launch.py')]),
         launch_arguments={
-            'use_composable': 'False',
+            #
+            'use_composable': LaunchConfiguration('use_composable'),
+            'container_name': 'demo_composable_container',
+            #
             'log_level': 'INFO',
             'scan_topic_name': '/laser1, /laser2',
             'points_topic_name': '/lidar1_points',
@@ -72,18 +78,26 @@ def generate_launch_description():
         }.items()
     )
 
-    # Launch for mrpt_reactivenav2d:
-    node_rnav2d_launch = IncludeLaunchDescription(
+    # Launch for pf_localization:
+    pf_localization_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('mrpt_reactivenav2d'), 'launch',
-            'rnav.launch.py')]),
+            get_package_share_directory('mrpt_pf_localization'), 'launch',
+            'localization.launch.py')]),
         launch_arguments={
+            #
+            'use_composable': LaunchConfiguration('use_composable'),
+            'container_name': 'demo_composable_container',
+            #
             'log_level': 'INFO',
-            # 'save_nav_log': 'True',
-            'frameid_robot': 'base_link',
-            'frameid_reference': 'map',
-            'topic_reactive_nav_goal': '/rnav_goal',  # we don't publish this topic
-            'topic_wp_seq': '/waypoints',            # only this one instead.
+            'log_level_core': 'INFO',
+            'topic_sensors_2d_scan': '/laser1',
+            'topic_sensors_point_clouds': '',
+
+            # For robots with wheels odometry, use:     'base_link'-> 'odom'      -> 'map'
+            # For systems without wheels odometry, use: 'base_link'-> 'base_link' -> 'map'
+            'base_link_frame_id': 'base_link',
+            'odom_frame_id': 'odom',
+            'global_frame_id': 'map',
         }.items()
     )
 
@@ -94,11 +108,13 @@ def generate_launch_description():
         arguments=[
                 '-d', [os.path.join(tutsDir, 'rviz2', 'gridmap.rviz')]]
     )
+
     return LaunchDescription([
+        use_composable_arg,
+        container,
         mrpt_map_launch,
-        mrpt_astar_planner_launch,
+        pf_localization_launch,
         mvsim_node,
         pointcloud_pipeline_launch,
-        node_rnav2d_launch,
-        rviz2_node
+        rviz2_node,
     ])
