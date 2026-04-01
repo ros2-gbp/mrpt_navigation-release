@@ -1,3 +1,35 @@
+## mrpt_navigation (humble) - 2.3.1-1
+
+The packages in the `mrpt_navigation` repository were released into the `humble` distro by running `/usr/bin/bloom-release -r humble -y mrpt_navigation` on `Wed, 01 Apr 2026 22:50:51 -0000`
+
+These packages were released:
+- `mrpt_map_server`
+- `mrpt_msgs_bridge`
+- `mrpt_nav_interfaces`
+- `mrpt_navigation`
+- `mrpt_pf_localization`
+- `mrpt_pointcloud_pipeline`
+- `mrpt_reactivenav2d`
+- `mrpt_tps_astar_planner`
+- `mrpt_tutorials`
+
+Version of package(s) in repository `mrpt_navigation`:
+
+- upstream repository: https://github.com/mrpt-ros-pkg/mrpt_navigation.git
+- release repository: https://github.com/ros2-gbp/mrpt_navigation-release.git
+- rosdistro version: `2.3.0-1`
+- old version: `2.3.0-1`
+- new version: `2.3.1-1`
+
+Versions of tools used:
+
+- bloom version: `0.13.0`
+- catkin_pkg version: `1.1.0`
+- rosdep version: `0.26.0`
+- rosdistro version: `1.0.1`
+- vcstools version: `0.1.42`
+
+
 ## mrpt_navigation (rolling) - 2.3.0-1
 
 The packages in the `mrpt_navigation` repository were released into the `rolling` distro by running `/home/jlblanco/code/bloom-venv/bin/bloom-release -r rolling -y mrpt_navigation` on `Sun, 26 Oct 2025 18:34:00 -0000`
