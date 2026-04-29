@@ -1,0 +1,12 @@
+Source: ros-lyrical-mrpt-tutorials
+Section: misc
+Priority: optional
+Maintainer: Jose Luis Blanco-Claraco <joseluisblancoc@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), cmake, ros-lyrical-ament-cmake, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation
+Standards-Version: 3.9.2
+
+Package: ros-lyrical-mrpt-tutorials
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-mvsim, ros-lyrical-teleop-twist-keyboard, ros-lyrical-ros-workspace
+Description: Example files used as tutorials for MRPT ROS packages
