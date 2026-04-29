@@ -1,1 +1,1 @@
-{"base": "6e93491f545f", "parent": "debian/rolling/mrpt_msgs_bridge", "previous": "47bd0e374157", "trim": "", "trimbase": ""}
+{"base": "a6deeaa3", "parent": "debian/lyrical/mrpt_msgs_bridge", "previous": "3d565306", "trim": "", "trimbase": ""}
