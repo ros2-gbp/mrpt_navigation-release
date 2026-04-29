@@ -1,0 +1,12 @@
+Source: ros-lyrical-mrpt-msgs-bridge
+Section: misc
+Priority: optional
+Maintainer: José Luis Blanco-Claraco <joseluisblancoc@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ros-lyrical-ament-cmake, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-geometry-msgs, ros-lyrical-mrpt-libobs, ros-lyrical-mrpt-libros-bridge, ros-lyrical-mrpt-msgs, ros-lyrical-rclcpp, ros-lyrical-ros-environment, ros-lyrical-tf2, ros-lyrical-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation
+Standards-Version: 3.9.2
+
+Package: ros-lyrical-mrpt-msgs-bridge
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-geometry-msgs, ros-lyrical-mrpt-libobs, ros-lyrical-mrpt-libros-bridge, ros-lyrical-mrpt-msgs, ros-lyrical-rclcpp, ros-lyrical-tf2, ros-lyrical-ros-workspace
+Description: C++ library to convert between custom mrpt_msgs messages and native MRPT classes
