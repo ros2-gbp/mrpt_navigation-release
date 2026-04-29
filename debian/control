@@ -1,0 +1,12 @@
+Source: ros-lyrical-mrpt-reactivenav2d
+Section: misc
+Priority: optional
+Maintainer: Jose-Luis Blanco-Claraco <jlblanco@ual.es>
+Build-Depends: debhelper (>= 9.0.0), ros-lyrical-ament-cmake, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-geometry-msgs, ros-lyrical-mrpt-libnav, ros-lyrical-mrpt-libros-bridge, ros-lyrical-mrpt-nav-interfaces, ros-lyrical-nav-msgs, ros-lyrical-rclcpp, ros-lyrical-rclcpp-components, ros-lyrical-sensor-msgs, ros-lyrical-std-msgs, ros-lyrical-stereo-msgs, ros-lyrical-tf2, ros-lyrical-tf2-geometry-msgs, ros-lyrical-tf2-ros, ros-lyrical-visualization-msgs, ros-lyrical-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation
+Standards-Version: 3.9.2
+
+Package: ros-lyrical-mrpt-reactivenav2d
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-geometry-msgs, ros-lyrical-mrpt-libnav, ros-lyrical-mrpt-libros-bridge, ros-lyrical-mrpt-nav-interfaces, ros-lyrical-nav-msgs, ros-lyrical-rclcpp, ros-lyrical-rclcpp-components, ros-lyrical-sensor-msgs, ros-lyrical-std-msgs, ros-lyrical-stereo-msgs, ros-lyrical-tf2, ros-lyrical-tf2-geometry-msgs, ros-lyrical-tf2-ros, ros-lyrical-visualization-msgs, ros-lyrical-ros-workspace
+Description: Reactive navigation for wheeled robots using MRPT navigation algorithms (TP-Space)
