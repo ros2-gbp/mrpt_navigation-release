@@ -1,0 +1,13 @@
+Source: ros-lyrical-mrpt-pf-localization
+Section: misc
+Priority: optional
+Maintainer: Markus Bader <markus.bader@tuwien.ac.at>
+Build-Depends: debhelper (>= 9.0.0), cmake, ros-lyrical-ament-cmake, ros-lyrical-ament-cmake-gtest <!nocheck>, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-mola-relocalization, ros-lyrical-mp2p-icp, ros-lyrical-mrpt-libgui, ros-lyrical-mrpt-libros-bridge, ros-lyrical-mrpt-libslam, ros-lyrical-mrpt-msgs, ros-lyrical-mrpt-msgs-bridge, ros-lyrical-mrpt-tutorials <!nocheck>, ros-lyrical-nav-msgs, ros-lyrical-pose-cov-ops, ros-lyrical-rclcpp, ros-lyrical-rclcpp-components, ros-lyrical-sensor-msgs, ros-lyrical-std-msgs, ros-lyrical-tf2, ros-lyrical-tf2-geometry-msgs, ros-lyrical-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation/tree/ros2/mrpt_pf_localization
+Standards-Version: 3.9.2
+
+Package: ros-lyrical-mrpt-pf-localization
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-mola-relocalization, ros-lyrical-mp2p-icp, ros-lyrical-mrpt-libgui, ros-lyrical-mrpt-libros-bridge, ros-lyrical-mrpt-libslam, ros-lyrical-mrpt-msgs, ros-lyrical-mrpt-msgs-bridge, ros-lyrical-nav-msgs, ros-lyrical-pose-cov-ops, ros-lyrical-rclcpp, ros-lyrical-rclcpp-components, ros-lyrical-sensor-msgs, ros-lyrical-std-msgs, ros-lyrical-tf2, ros-lyrical-tf2-geometry-msgs, ros-lyrical-ros-workspace
+Description: Package for robot 2D self-localization using dynamic or static (MRPT or ROS) maps.
+ The interface is similar to amcl (https://wiki.ros.org/amcl) but supports different particle-filter algorithms, several grid maps at different heights, range-only localization, etc.
