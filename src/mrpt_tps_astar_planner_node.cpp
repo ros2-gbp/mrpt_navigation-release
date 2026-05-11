@@ -64,7 +64,6 @@
 #include <thread>
 
 // for debugging
-#include <mrpt/gui/CDisplayWindow3D.h>
 #include <mrpt/opengl/CGridPlaneXY.h>
 #include <mrpt/opengl/COpenGLScene.h>
 #include <mrpt/opengl/stock_objects.h>
@@ -187,9 +186,6 @@ class TPS_Astar_Planner_Node : public rclcpp::Node
 	bool mid_waypoints_ignore_heading_ = false;
 	bool final_waypoint_ignore_heading_ = false;
 
-	/// Pointer to MRPT 3D display window
-	mrpt::gui::CDisplayWindow3D::Ptr win_3d_;
-
 	/// Planner params loaded once at startup, reused to init per-call local planner instances
 	mrpt::containers::yaml planner_params_yaml_;
 
@@ -307,8 +303,6 @@ class TPS_Astar_Planner_Node : public rclcpp::Node
 	/**
 	 * @brief Debug method to visualize the planning
 	 */
-	void init_3d_debug();
-
 	/**
 	 * @brief Publisher method to publish waypoint sequence
 	 * @param wps Waypoint sequence object
@@ -649,24 +643,23 @@ void TPS_Astar_Planner_Node::callback_obstacles(
 void TPS_Astar_Planner_Node::update_obstacles(
 	const sensor_msgs::msg::PointCloud2::SharedPtr& pcMsg, InfoPerPointMapSource& e)
 {
-	auto lck = mrpt::lockHelper(obstacles_cs_);
-
 	auto pc = mrpt::maps::CSimplePointsMap::Create();
 	if (!mrpt::ros2bridge::fromROS(*pcMsg, *pc))
 	{
 		RCLCPP_ERROR(this->get_logger(), "Failed to convert Point Cloud to MRPT Points Map");
 	}
 
-	// Transform the cloud to its global pose in the map:
+	// Transform the cloud to its global pose in the map.
+	// Do this before taking the lock: wait_for_transform may block for up to
+	// its timeout, and holding obstacles_cs_ during that time would stall
+	// do_path_plan for the same duration.
 	mrpt::poses::CPose3D sensorPoseInMap;
+	if (!wait_for_transform(sensorPoseInMap, pcMsg->header.frame_id, frame_id_map_)) return;
 
-	// Update fields only when transform data to become available
-	if (wait_for_transform(sensorPoseInMap, pcMsg->header.frame_id, frame_id_map_))
-	{
-		pc->changeCoordinatesReference(sensorPoseInMap);
+	pc->changeCoordinatesReference(sensorPoseInMap);
 
-		e.obstacle_points = pc;
-	}
+	auto lck = mrpt::lockHelper(obstacles_cs_);
+	e.obstacle_points = pc;
 }
 
 void TPS_Astar_Planner_Node::publish_waypoint_sequence(const mrpt_msgs::msg::WaypointSequence& wps)
@@ -683,30 +676,6 @@ void TPS_Astar_Planner_Node::publish_waypoint_sequence(const mrpt_msgs::msg::Way
 		q.pose = w.target;
 	}
 	pub_wp_path_seq_->publish(p);
-}
-
-void TPS_Astar_Planner_Node::init_3d_debug()
-{
-	if (win_3d_) return;
-
-	win_3d_ = mrpt::gui::CDisplayWindow3D::Create("Pathplanning-TPS-AStar", 1000, 600);
-	win_3d_->setCameraZoom(20);
-	win_3d_->setCameraAzimuthDeg(-45);
-
-	auto scene = win_3d_->get3DSceneAndLock();
-
-	auto lck = mrpt::lockHelper(obstacles_cs_);
-
-	for (const auto& e : gridmaps_) scene->insert(e.grid->getVisualization());
-
-	for (const auto& e : obstacle_points_)
-		if (e.obstacle_points) scene->insert(e.obstacle_points->getVisualization());
-
-	lck.unlock();
-
-	scene->enableFollowCamera(true);
-
-	win_3d_->unlockAccess3DScene();
 }
 
 void TPS_Astar_Planner_Node::update_map(
@@ -893,7 +862,6 @@ TPS_Astar_Planner_Node::PlanResult TPS_Astar_Planner_Node::do_path_plan(
 	// Show plan in a GUI for debugging
 	if (gui_mrpt_)
 	{
-		init_3d_debug();
 		mpp::VisualizationOptions vizOpts;
 
 		vizOpts.renderOptions.highlight_path_to_node_id = plan.bestNodeId;
