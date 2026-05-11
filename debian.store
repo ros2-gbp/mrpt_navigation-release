@@ -1,1 +1,1 @@
-{"base": "218b9bb30b32", "parent": "debian/rolling/mrpt_pf_localization", "previous": "c41396cdf065", "trim": "", "trimbase": ""}
+{"base": "adfc7683", "parent": "debian/rolling/mrpt_pf_localization", "previous": "1dabe3b0", "trim": "", "trimbase": ""}
