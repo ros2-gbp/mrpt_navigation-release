@@ -1,0 +1,12 @@
+Source: ros-jazzy-mrpt-trajectory-follower
+Section: misc
+Priority: optional
+Maintainer: "Jose-Luis Blanco-Claraco" <jlblanco@ual.es>
+Build-Depends: debhelper (>= 9.0.0), ros-jazzy-ament-cmake, ros-jazzy-ament-cmake-lint-cmake <!nocheck>, ros-jazzy-ament-cmake-xmllint <!nocheck>, ros-jazzy-ament-lint-auto <!nocheck>, ros-jazzy-geometry-msgs, ros-jazzy-mrpt-containers, ros-jazzy-mrpt-libros-bridge, ros-jazzy-mrpt-maps, ros-jazzy-mrpt-math, ros-jazzy-mrpt-path-planning-core, ros-jazzy-mrpt-system, ros-jazzy-nav-msgs, ros-jazzy-rclcpp, ros-jazzy-sensor-msgs, ros-jazzy-std-msgs, ros-jazzy-tf2, ros-jazzy-tf2-geometry-msgs, ros-jazzy-tf2-ros, ros-jazzy-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation
+Standards-Version: 3.9.2
+
+Package: ros-jazzy-mrpt-trajectory-follower
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-jazzy-geometry-msgs, ros-jazzy-mrpt-containers, ros-jazzy-mrpt-libros-bridge, ros-jazzy-mrpt-maps, ros-jazzy-mrpt-math, ros-jazzy-mrpt-path-planning-core, ros-jazzy-mrpt-system, ros-jazzy-nav-msgs, ros-jazzy-rclcpp, ros-jazzy-sensor-msgs, ros-jazzy-std-msgs, ros-jazzy-tf2, ros-jazzy-tf2-geometry-msgs, ros-jazzy-tf2-ros, ros-jazzy-ros-workspace
+Description: ROS 2 node that accurately follows a reference trajectory with minimal predictive safety, wrapping mpp::TrajectoryFollower
