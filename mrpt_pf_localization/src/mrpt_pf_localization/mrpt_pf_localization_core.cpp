@@ -16,16 +16,20 @@
 #include <mrpt/maps/CSimplePointsMap.h>
 #include <mrpt/obs/CActionCollection.h>
 #include <mrpt/obs/CObservationPointCloud.h>
-#include <mrpt/opengl/CEllipsoid2D.h>
-#include <mrpt/opengl/CEllipsoid3D.h>
-#include <mrpt/opengl/CPointCloud.h>
 #include <mrpt/random/RandomGenerators.h>
 #include <mrpt/ros2bridge/map.h>
 #include <mrpt/system/filesystem.h>
 #include <mrpt/system/hyperlink.h>
 #include <mrpt/topography/conversions.h>  // geodeticToENU_WGS84
 #include <mrpt/topography/data_types.h>	 // TGeodeticCoords
+#include <mrpt/viz/CEllipsoid2D.h>
+#include <mrpt/viz/CEllipsoid3D.h>
+#include <mrpt/viz/CPointCloud.h>
+#include <mrpt/viz/CVisualObject.h>
+#include <mrpt/viz/opengl_fonts.h>
 #include <mrpt_pf_localization/mrpt_pf_localization_core.h>
+
+#include <cmath>
 
 #ifdef HAVE_MOLA_RELOCALIZATION
 #include <mola_relocalization/relocalization.h>
@@ -150,8 +154,8 @@ void PFLocalizationCore::Parameters::load_from(const mrpt::containers::yaml& par
 		ASSERT_(params["initial_pose"]["std_x"].isScalar());
 		ASSERT_(params["initial_pose"]["std_y"].isScalar());
 
-		const auto& ipP = params["initial_pose"];
-		const auto& m = ipP["mean"];
+		const mrpt::containers::yaml ipP = params["initial_pose"];
+		const mrpt::containers::yaml m = ipP["mean"];
 		auto& ip = initial_pose;
 		ip.emplace();
 		ip->mean.x(m["x"].as<double>());
@@ -179,7 +183,7 @@ void PFLocalizationCore::Parameters::load_from(const mrpt::containers::yaml& par
 
 	// pf_options:
 	ASSERT_(params.has("pf_options"));
-	auto& pfo = params["pf_options"];
+	mrpt::containers::yaml pfo = params["pf_options"];
 	getOptParam(pfo, pf_options.BETA, "BETA");
 
 	{
@@ -209,7 +213,7 @@ void PFLocalizationCore::Parameters::load_from(const mrpt::containers::yaml& par
 
 	// kld_options:
 	ASSERT_(params.has("kld_options"));
-	auto& kldo = params["kld_options"];
+	mrpt::containers::yaml kldo = params["kld_options"];
 	getOptParam(kldo, kld_options.KLD_binSize_XY, "KLD_binSize_XY");
 	getOptParam(kldo, kld_options.KLD_binSize_PHI, "KLD_binSize_PHI");
 	getOptParam(kldo, kld_options.KLD_delta, "KLD_delta");
@@ -557,7 +561,7 @@ void PFLocalizationCore::onStateToBeInitialized()
 		// in.local_map: to be populated in running state
 
 		// (shallow) copy metric maps into expected format:
-		const auto& maps = _.metric_map->maps;
+		const auto& maps = _.metric_map->mapsList();
 		ASSERT_(!maps.empty());
 		ASSERT_(
 			params_.metric_map_layer_names.empty() ||
@@ -643,7 +647,7 @@ void PFLocalizationCore::onStateRunning()
 	// Do we have *any* usable observation?
 	// Not any observation is usable with any map:
 	bool canComputeLikelihood = false;
-	for (const auto& m : state_.metric_map->maps)
+	for (const auto& m : state_.metric_map->mapsList())
 	{
 		if (m->canComputeObservationsLikelihood(sf))
 		{
@@ -983,7 +987,7 @@ void PFLocalizationCore::set_map_from_metric_map(const mp2p_icp::metric_map_t& m
 			continue;  // filter out this one
 
 		// use this map layer:
-		mMap->maps.push_back(layerMap);
+		mMap->mapsList().push_back(layerMap);
 		layerNames.push_back(layerName);
 	}
 
@@ -997,7 +1001,7 @@ void PFLocalizationCore::set_map_from_metric_map(
 {
 	auto lck = mrpt::lockHelper(stateMtx_);
 
-	for (const auto& m : metricMap->maps)
+	for (const auto& m : metricMap->mapsList())
 	{
 		ASSERT_(m);
 
@@ -1024,7 +1028,7 @@ void PFLocalizationCore::set_map_from_metric_map(
 		{
 			std::stringstream ss;
 			ss << metricMap->asString() << ". Maps:\n";
-			for (const auto& m : metricMap->maps)
+			for (const auto& m : metricMap->mapsList())
 			{
 				ASSERT_(m);
 				ss << " - " << m->asString() << "\n";
@@ -1063,7 +1067,7 @@ void PFLocalizationCore::init_from_yaml(
 	// Load all required and optional params:
 	params_.load_from(pf_params);
 
-	if (pf_params.asMap().count("log_level_core"))
+	if (pf_params.has("log_level_core"))
 	{
 		const auto coreLogLevel = mrpt::typemeta::str2enum<mrpt::system::VerbosityLevel>(
 			pf_params["log_level_core"].as<std::string>());
@@ -1124,7 +1128,7 @@ void PFLocalizationCore::init_gui()
 
 void PFLocalizationCore::update_gui(const mrpt::obs::CSensoryFrame& sf)
 {
-	using namespace mrpt::opengl;
+	using namespace mrpt::viz;
 
 	auto tle = mrpt::system::CTimeLoggerEntry(profiler_, "show3DDebug");
 
@@ -1160,13 +1164,13 @@ void PFLocalizationCore::update_gui(const mrpt::obs::CSensoryFrame& sf)
 	}
 	const auto& meanPose = estimatedPose.mean;
 
-	mrpt::opengl::Scene::Ptr scene;
+	mrpt::viz::Scene::Ptr scene;
 	{
 		mrpt::gui::CDisplayWindow3DLocker winLock(*win3D_, scene);
 
 		win3D_->setCameraPointingToPoint(estimatedPose.mean.x(), estimatedPose.mean.y(), 0);
 
-		mrpt::opengl::TFontParams fp;
+		mrpt::viz::TFontParams fp;
 		fp.color = mrpt::img::TColorf(.8f, .8f, .8f);
 		fp.vfont_name = "mono";
 		fp.vfont_scale = 15;
@@ -1197,7 +1201,7 @@ void PFLocalizationCore::update_gui(const mrpt::obs::CSensoryFrame& sf)
 
 		// The particles:
 		{
-			CRenderizable::Ptr parts = scene->getByName("particles");
+			mrpt::viz::CVisualObject::Ptr parts = scene->getByName("particles");
 			if (parts) scene->removeObject(parts);
 
 			CSetOfObjects::Ptr p = state_.pdf2d ? state_.pdf2d->getAs3DObject<CSetOfObjects::Ptr>()
@@ -1209,7 +1213,7 @@ void PFLocalizationCore::update_gui(const mrpt::obs::CSensoryFrame& sf)
 		// The particles' covariance as an ellipsoid:
 		if (state_.pdf2d)
 		{
-			CRenderizable::Ptr ellip = scene->getByName("parts_cov");
+			mrpt::viz::CVisualObject::Ptr ellip = scene->getByName("parts_cov");
 			if (!ellip)
 			{
 				auto o = CEllipsoid2D::Create();
@@ -1228,7 +1232,7 @@ void PFLocalizationCore::update_gui(const mrpt::obs::CSensoryFrame& sf)
 		}
 		else
 		{
-			CRenderizable::Ptr ellip = scene->getByName("parts_cov");
+			mrpt::viz::CVisualObject::Ptr ellip = scene->getByName("parts_cov");
 			if (!ellip)
 			{
 				auto o = CEllipsoid3D::Create();
@@ -1248,7 +1252,7 @@ void PFLocalizationCore::update_gui(const mrpt::obs::CSensoryFrame& sf)
 
 		// The laser scan and other observations:
 		{
-			CRenderizable::Ptr scan_pts = scene->getByName("scan");
+			mrpt::viz::CVisualObject::Ptr scan_pts = scene->getByName("scan");
 			if (!scan_pts)
 			{
 				auto o = CPointCloud::Create();
@@ -1306,6 +1310,39 @@ void PFLocalizationCore::relocalize_here(const mrpt::poses::CPose3DPDFGaussian& 
 	{
 		state_.fsm_state = State::TO_BE_INITIALIZED;
 	}
+}
+
+bool PFLocalizationCore::nudge_pose_towards(
+	const mrpt::poses::CPose3DPDFGaussian& pose, double gain)
+{
+	auto lck = mrpt::lockHelper(stateMtx_);
+
+	if (state_.fsm_state != State::RUNNING || !state_.pdf2d)
+	{
+		return false;
+	}
+
+	if (gain <= 0.0) return true;
+	if (gain > 1.0) gain = 1.0;
+
+	const auto [cov2D, meanPose2D] = state_.pdf2d->getCovarianceAndMean();
+	(void)cov2D;
+
+	const double dx = pose.mean.x() - meanPose2D.x();
+	const double dy = pose.mean.y() - meanPose2D.y();
+	const double dyaw = std::atan2(
+		std::sin(pose.mean.yaw() - meanPose2D.phi()), std::cos(pose.mean.yaw() - meanPose2D.phi()));
+
+	for (auto& p : state_.pdf2d->m_particles)
+	{
+		p.d.x += gain * dx;
+		p.d.y += gain * dy;
+		p.d.phi += gain * dyaw;
+		p.d.normalizePhi();
+	}
+
+	internal_fill_state_lastResult();
+	return true;
 }
 
 mrpt::poses::CPose3DPDFParticles::Ptr PFLocalizationCore::getLastPoseEstimation() const
