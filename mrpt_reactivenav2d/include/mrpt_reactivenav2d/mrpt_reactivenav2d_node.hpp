@@ -24,6 +24,7 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
+#include <atomic>
 #include <geometry_msgs/msg/polygon.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <mrpt_msgs/msg/waypoint.hpp>
@@ -40,6 +41,8 @@
 #include <tf2/LinearMath/Matrix3x3.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <thread>
+#include <vector>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 namespace mrpt_reactivenav2d
@@ -51,7 +54,7 @@ class ReactiveNav2DNode : public rclcpp::Node
 	/* Ctor*/
 	explicit ReactiveNav2DNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 	/* Dtor*/
-	~ReactiveNav2DNode() {}
+	~ReactiveNav2DNode();
 
    private:
 	// methods
@@ -107,7 +110,7 @@ class ReactiveNav2DNode : public rclcpp::Node
 	std::string frameidRobot_ = "base_link";
 
 	/// If enabled, no obstacle avoidance will be attempted (!)
-	bool pure_pursuit_mode_ = false;
+	std::atomic<bool> pure_pursuit_mode_ = false;
 	std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_pure_pursuit_mode_;
 
 	std::string pluginFile_ = {};
@@ -145,10 +148,7 @@ class ReactiveNav2DNode : public rclcpp::Node
 		 *	 \param curW Current angular speed, in radians per second.
 		 * \return false on any error.
 		 */
-		bool getCurrentPoseAndSpeeds(
-			mrpt::math::TPose2D& curPose, mrpt::math::TTwist2D& curVel,
-			mrpt::system::TTimeStamp& timestamp, mrpt::math::TPose2D& curOdometry,
-			std::string& frame_id) override;
+		std::optional<CurrentPoseAndSpeeds> getCurrentPoseAndSpeeds() override;
 
 		/** Change the instantaneous speeds of robot.
 		 *   \param v Linear speed, in meters per second.
@@ -157,7 +157,7 @@ class ReactiveNav2DNode : public rclcpp::Node
 		 */
 		bool changeSpeeds(const mrpt::kinematics::CVehicleVelCmd& vel_cmd) override;
 
-		bool stop(bool isEmergency) override;
+		bool stop(mrpt::nav::StopType stopType = mrpt::nav::StopType::Emergency) override;
 
 		/** Start the watchdog timer of the robot platform, if any.
 		 * \param T_ms Period, in ms.
@@ -240,6 +240,10 @@ class ReactiveNav2DNode : public rclcpp::Node
 
 	std::optional<bool> currentNavEndedSuccessfully_;
 	std::mutex currentNavEndedSuccessfullyMtx_;
+
+	/// Joinable action threads — joined in destructor to avoid dangling `this`
+	std::vector<std::thread> actionThreads_;
+	std::mutex actionThreadsMtx_;
 
 	// ACTION INTERFACE: NavigateWaypoints
 	// --------------------------------------
