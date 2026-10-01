@@ -2,6 +2,12 @@
 Changelog for package mrpt_tutorials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.6.0 (2026-10-01)
+------------------
+* Merge ros2 into mrpt3
+* add tutorial/demo with Astar planner+new path follower
+* Contributors: Jose Luis Blanco-Claraco
+
 2.5.0 (2026-05-11)
 ------------------
 * Merge pull request `#159 <https://github.com/mrpt-ros-pkg/mrpt_navigation/issues/159>`_ from mrpt-ros-pkg/bump-cmake
