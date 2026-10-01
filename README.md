@@ -1,125 +1,87 @@
-# mrpt_tps_astar_planner
+[![CI Build colcon](https://github.com/mrpt-ros-pkg/mrpt_navigation/actions/workflows/build-ros.yml/badge.svg)](https://github.com/mrpt-ros-pkg/mrpt_navigation/actions/workflows/build-ros.yml)
 
-## Overview
+| Distro | Build dev | Stable sync |
+| --- | --- | --- |
+| ROS 2 Humble (u22.04) | [![Build Status](https://build.ros2.org/job/Hdev__mrpt_navigation__ubuntu_jammy_amd64/badge/icon)](https://build.ros2.org/job/Hdev__mrpt_navigation__ubuntu_jammy_amd64/) | [![Version](https://img.shields.io/ros/v/humble/mrpt_navigation)](https://index.ros.org/search/?term=mrpt_navigation) |
+| ROS 2 Jazzy (u24.04) | [![Build Status](https://build.ros2.org/job/Jdev__mrpt_navigation__ubuntu_noble_amd64/badge/icon)](https://build.ros2.org/job/Jdev__mrpt_navigation__ubuntu_noble_amd64/) | [![Version](https://img.shields.io/ros/v/jazzy/mrpt_navigation)](https://index.ros.org/search/?term=mrpt_navigation) |
+| ROS 2 Kilted (u24.04) | [![Build Status](https://build.ros2.org/job/Kdev__mrpt_navigation__ubuntu_noble_amd64/badge/icon)](https://build.ros2.org/job/Kdev__mrpt_navigation__ubuntu_noble_amd64/) | [![Version](https://img.shields.io/ros/v/kilted/mrpt_navigation)](https://index.ros.org/search/?term=mrpt_navigation) |
+| ROS 2 Rolling (u24.04) | [![Build Status](https://build.ros2.org/job/Rdev__mrpt_navigation__ubuntu_noble_amd64/badge/icon)](https://build.ros2.org/job/Rdev__mrpt_navigation__ubuntu_noble_amd64/) | [![Version](https://img.shields.io/ros/v/rolling/mrpt_navigation)](https://index.ros.org/search/?term=mrpt_navigation) |
 
-This package provides a ROS 2 node that uses the PTG-based A\* planner from
-`mrpt_path_planning` to compute collision-free waypoint sequences for a
-non-holonomic robot, respecting its real shape, orientation, and kinematic
-constraints.
-
-Planning is performed on a SE(2) lattice using Parameterized Trajectory
-Generator (PTG) families that encode the robot's motion primitives. The result
-is published as a `mrpt_msgs/WaypointSequence` (and a `nav_msgs/Path` for
-visualization) and/or returned as the response of a ROS 2 service call.
-
-The node supports **concurrent service requests**: each executor thread owns a
-lazily-initialized planner instance, so multiple clients can request plans
-simultaneously without blocking each other.
-
-## How to cite
-
-<details>
-    TBD!
-</details>
+| EOL Distro | Last version |
+| --- | --- |
+| ROS 2 Iron (u22.04) | [![Version](https://img.shields.io/ros/v/iron/mrpt_navigation)](https://index.ros.org/search/?term=mrpt_navigation) |
 
 
-## Configuration
+<img align="center" src="https://mrpt.github.io/imgs/mrpt_reactivenav_ros_demo_s40.gif">
 
-Key configuration files passed as ROS 2 parameters:
+mrpt_navigation
+===============
 
-| Parameter | Description |
-|---|---|
-| `ptg_ini` | INI file describing PTG families (robot kinematics) |
-| `planner_parameters` | YAML file with A\* algorithm parameters |
-| `global_costmap_parameters` | YAML file for costmap obstacle-inflation parameters |
-| `prefer_waypoints_parameters` | YAML file for waypoint-preference cost weights |
+This repository provides packages that wrap functionality in the Mobile Robot Programming Toolkit ([MRPT](https://github.com/MRPT/mrpt/)) related to localization and navigation. MRPT SLAM and sensor access are wrapped into [other ROS repositories](https://github.com/mrpt-ros-pkg/).
+
+The latest **SLAM framework**, whose maps are compatible with this repository for localization, is [MOLA](https://github.com/MOLAorg/).
 
 
-## Demos
+Documentation for each package
+----------------------------------
+All packages follow [REP-2003](https://ros.org/reps/rep-2003.html) regarding ROS 2 topic QoS.
 
-See the `path-planner-sandbox/` subdirectory for standalone test scripts and
-sample maps.
+Related to localization:
+* [mrpt_map_server](mrpt_map_server): A node that loads a ROS standard gridmap or an MRPT or MP2P_ICP map and publishes it to a (set of) topic(s).
+* [mrpt_pf_localization](mrpt_pf_localization): A node for particle filter-based localization of a robot from any kind of metric map (gridmap, points, range-only sensors, ...).
+
+Related to sensor pipelines:
+* [mrpt_pointcloud_pipeline](mrpt_pointcloud_pipeline): A node that maintains a local obstacle map from recent sensor readings, including optional point cloud pipeline filtering or processing. For example,
+  - For 3D LIDARs, to filter by a volume or area, downsample the number of points, etc.
+  - For 2D laser scanners, to keep a memory of obstacles that get out of the sensor field of view.
+
+Related to autonomous navigation:
+* [mrpt_reactivenav2d](mrpt_reactivenav2d): A pure reactive navigator for polygonal robots on 2D worlds.
+* [mrpt_tps_astar_planner](mrpt_tps_astar_planner): A path planner based on PTG trajectories using A* in a SE(2) lattice.
+
+Others:
+* [mrpt_tutorials](mrpt_tutorials): Launch and configuration files for the various examples provided for the other packages.
+* [mrpt_msgs_bridge](mrpt_msgs_bridge): C++ library to convert between custom [mrpt_msgs](https://github.com/mrpt-ros-pkg/mrpt_msgs) messages and native MRPT classes
+* [mrpt_nav_interfaces](mrpt_nav_interfaces): Definition of msgs, srvs, and actions used by the other packages.
 
 
-## Node: `mrpt_tps_astar_planner_node`
+General documentation
+----------------------------------
+* ROS wiki: http://wiki.ros.org/mrpt_navigation
+* Compiling instructions: http://wiki.ros.org/mrpt_navigation/Tutorials/Installing
+* Usage examples and tutorials: http://wiki.ros.org/mrpt_navigation/Tutorials
+* Branches:
+  * `ros2`: The most recent, active branch for modern ROS 2 distributions.
+  * `ros1`: Intended for ROS 1. No further development will happen there.
 
-### Working rationale
+Individual package build status
+---------------------------------
 
-1. Obstacle data are maintained from subscribed gridmaps and/or point-cloud
-   topics (updated asynchronously, protected by a mutex).
-2. On each planning request (topic goal or service call) the node snapshots the
-   current obstacle data, builds cost evaluators, and runs the A\* planner.
-3. The planned path is interpolated at a fixed time step and converted to a
-   `WaypointSequence`.
+| Package | ROS 2 Humble <br/> BinBuild |  ROS 2 Jazzy <br/> BinBuild | ROS 2 Kilted <br/> BinBuild |  ROS 2 Rolling <br/> BinBuild |
+| --- | --- | --- | --- | --- |
+| mrpt_map_server | [![Build Status](https://build.ros2.org/job/Hbin_uJ64__mrpt_map_server__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/job/Hbin_uJ64__mrpt_map_server__ubuntu_jammy_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Jbin_uN64__mrpt_map_server__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Jbin_uN64__mrpt_map_server__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Kbin_uN64__mrpt_map_server__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Kbin_uN64__mrpt_map_server__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Rbin_uN64__mrpt_map_server__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Rbin_uN64__mrpt_map_server__ubuntu_noble_amd64__binary/) |
+| mrpt_msgs_bridge | [![Build Status](https://build.ros2.org/job/Hbin_uJ64__mrpt_msgs_bridge__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/job/Hbin_uJ64__mrpt_msgs_bridge__ubuntu_jammy_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Jbin_uN64__mrpt_msgs_bridge__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Jbin_uN64__mrpt_msgs_bridge__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Kbin_uN64__mrpt_msgs_bridge__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Kbin_uN64__mrpt_msgs_bridge__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Rbin_uN64__mrpt_msgs_bridge__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Rbin_uN64__mrpt_msgs_bridge__ubuntu_noble_amd64__binary/) |
+| mrpt_nav_interfaces | [![Build Status](https://build.ros2.org/job/Hbin_uJ64__mrpt_nav_interfaces__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/job/Hbin_uJ64__mrpt_nav_interfaces__ubuntu_jammy_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Jbin_uN64__mrpt_nav_interfaces__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Jbin_uN64__mrpt_nav_interfaces__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Kbin_uN64__mrpt_nav_interfaces__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Kbin_uN64__mrpt_nav_interfaces__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Rbin_uN64__mrpt_nav_interfaces__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Rbin_uN64__mrpt_nav_interfaces__ubuntu_noble_amd64__binary/) |
+| mrpt_navigation | [![Build Status](https://build.ros2.org/job/Hbin_uJ64__mrpt_navigation__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/job/Hbin_uJ64__mrpt_navigation__ubuntu_jammy_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Jbin_uN64__mrpt_navigation__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Jbin_uN64__mrpt_navigation__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Kbin_uN64__mrpt_navigation__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Kbin_uN64__mrpt_navigation__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Rbin_uN64__mrpt_navigation__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Rbin_uN64__mrpt_navigation__ubuntu_noble_amd64__binary/) |
+| mrpt_pf_localization | [![Build Status](https://build.ros2.org/job/Hbin_uJ64__mrpt_pf_localization__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/job/Hbin_uJ64__mrpt_pf_localization__ubuntu_jammy_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Jbin_uN64__mrpt_pf_localization__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Jbin_uN64__mrpt_pf_localization__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Kbin_uN64__mrpt_pf_localization__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Kbin_uN64__mrpt_pf_localization__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Rbin_uN64__mrpt_pf_localization__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Rbin_uN64__mrpt_pf_localization__ubuntu_noble_amd64__binary/) |
+| mrpt_pointcloud_pipeline | [![Build Status](https://build.ros2.org/job/Hbin_uJ64__mrpt_pointcloud_pipeline__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/job/Hbin_uJ64__mrpt_pointcloud_pipeline__ubuntu_jammy_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Jbin_uN64__mrpt_pointcloud_pipeline__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Jbin_uN64__mrpt_pointcloud_pipeline__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Kbin_uN64__mrpt_pointcloud_pipeline__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Kbin_uN64__mrpt_pointcloud_pipeline__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Rbin_uN64__mrpt_pointcloud_pipeline__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Rbin_uN64__mrpt_pointcloud_pipeline__ubuntu_noble_amd64__binary/) |
+| mrpt_reactivenav2d | [![Build Status](https://build.ros2.org/job/Hbin_uJ64__mrpt_reactivenav2d__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/job/Hbin_uJ64__mrpt_reactivenav2d__ubuntu_jammy_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Jbin_uN64__mrpt_reactivenav2d__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Jbin_uN64__mrpt_reactivenav2d__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Kbin_uN64__mrpt_reactivenav2d__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Kbin_uN64__mrpt_reactivenav2d__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Rbin_uN64__mrpt_reactivenav2d__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Rbin_uN64__mrpt_reactivenav2d__ubuntu_noble_amd64__binary/) |
+| mrpt_tps_astar_planner | [![Build Status](https://build.ros2.org/job/Hbin_uJ64__mrpt_tps_astar_planner__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/job/Hbin_uJ64__mrpt_tps_astar_planner__ubuntu_jammy_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Jbin_uN64__mrpt_tps_astar_planner__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Jbin_uN64__mrpt_tps_astar_planner__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Kbin_uN64__mrpt_tps_astar_planner__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Kbin_uN64__mrpt_tps_astar_planner__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Rbin_uN64__mrpt_tps_astar_planner__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Rbin_uN64__mrpt_tps_astar_planner__ubuntu_noble_amd64__binary/) |
+| mrpt_tutorials | [![Build Status](https://build.ros2.org/job/Hbin_uJ64__mrpt_tutorials__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/job/Hbin_uJ64__mrpt_tutorials__ubuntu_jammy_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Jbin_uN64__mrpt_tutorials__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Jbin_uN64__mrpt_tutorials__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Kbin_uN64__mrpt_tutorials__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Kbin_uN64__mrpt_tutorials__ubuntu_noble_amd64__binary/) | [![Build Status](https://build.ros2.org/job/Rbin_uN64__mrpt_tutorials__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/job/Rbin_uN64__mrpt_tutorials__ubuntu_noble_amd64__binary/) |
 
-The A\* implementation is an anytime algorithm: it improves the solution while
-time allows, then returns the best found. An optional refinement pass
-(`astar_skip_refine: false`) further smooths the result.
 
-### ROS 2 parameters
 
-| Parameter | Default | Description |
-|---|---|---|
-| `show_gui` | `false` | Open an MRPT 3D window showing maps and the planned path |
-| `frame_id_map` | `map` | TF frame of the global map |
-| `frame_id_robot` | `base_link` | TF frame of the robot |
-| `topic_goal_sub` | `tps_astar_nav_goal` | `geometry_msgs/PoseStamped` goal subscription |
-| `topic_obstacles_gridmap_sub` | _(empty)_ | Comma-separated occupancy-grid topics for obstacles |
-| `topic_obstacles_sub` | _(empty)_ | Comma-separated `PointCloud2` topics for obstacles |
-| `topic_static_maps` | `/map` | Subset of the above topics to subscribe with transient-local QoS |
-| `topic_wp_seq_pub` | `/waypoints` | Topic on which to publish the resulting waypoint sequence |
-| `topic_costmaps_pub` | `/costmap` | Prefix for costmap debug publishers |
-| `ptg_ini` | _(required)_ | Path to PTG `.ini` file |
-| `planner_parameters` | _(required)_ | Path to planner YAML file |
-| `global_costmap_parameters` | _(required)_ | Path to costmap YAML file |
-| `prefer_waypoints_parameters` | _(required)_ | Path to waypoint-preference YAML file |
-| `problem_world_bbox_margin` | `2.0` | Extra margin [m] added around the planning bounding box |
-| `problem_world_bbox_ignore_obstacles` | `false` | If true, obstacle extents are excluded from the bounding box |
-| `astar_skip_refine` | `false` | If true, skip the post-A\* trajectory refinement pass |
-| `mid_waypoints_allowed_distance` | `0.5` | Acceptance radius [m] for intermediate waypoints |
-| `final_waypoint_allowed_distance` | `0.4` | Acceptance radius [m] for the goal waypoint |
-| `mid_waypoints_allow_skip` | `true` | Whether intermediate waypoints may be skipped |
-| `final_waypoint_allow_skip` | `false` | Whether the final waypoint may be skipped |
-| `mid_waypoints_ignore_heading` | `false` | Whether heading is ignored at intermediate waypoints |
-| `final_waypoint_ignore_heading` | `false` | Whether heading is ignored at the final waypoint |
 
-### Subscribed topics
+Contributing
+----------------------------------
+* Code formatting: We use clang-format to ensure formatting consistency in the
+  code base. Set up your IDE to automatically use clang-format-14,
+  use `git clang-format-14`, or invoke it manually from the root directory as:
+  
+      bash clang-formatter.sh
 
-| Topic | Type | Description |
-|---|---|---|
-| `<topic_goal_sub>` | `geometry_msgs/PoseStamped` | Goal pose; triggers a plan from current TF robot pose |
-| `<topic_obstacles_gridmap_sub>` (one per entry) | `nav_msgs/OccupancyGrid` | Occupancy grid(s) used as static obstacles |
-| `<topic_obstacles_sub>` (one per entry) | `sensor_msgs/PointCloud2` | Point cloud(s) used as dynamic obstacles |
+**Contributors**
 
-### Published topics
-
-| Topic | Type | Description |
-|---|---|---|
-| `<topic_wp_seq_pub>` (default `/waypoints`) | `mrpt_msgs/WaypointSequence` | Full waypoint sequence with per-waypoint tolerances and flags |
-| `<topic_wp_seq_pub>_path` (default `/waypoints_path`) | `nav_msgs/Path` | Same path as `nav_msgs/Path`, mainly for RViz visualization |
-| `<topic_costmaps_pub>_0`, `_1`, … | `nav_msgs/OccupancyGrid` | Inflated costmaps (one per obstacle source), published after each plan |
-
-### Services
-
-| Service | Type | Description |
-|---|---|---|
-| `<node_fqn>/make_plan_to` | `mrpt_nav_interfaces/MakePlanTo` | Plan from the current robot TF pose to a given goal `PoseStamped`; returns `valid_path_found` and `waypoints` |
-| `<node_fqn>/make_plan_from_to` | `mrpt_nav_interfaces/MakePlanFromTo` | Plan between two explicitly given `Pose` values; no TF lookup needed |
-
-Both services are registered in a **reentrant callback group** so multiple
-clients can be served simultaneously by the `MultiThreadedExecutor`.
-
-### Template ROS 2 launch file
-
-```bash
-ros2 launch mrpt_tps_astar_planner tps_astar_planner.launch.py \
-    ptg_ini:=/path/to/ptgs.ini \
-    planner_parameters:=/path/to/planner-params.yaml \
-    global_costmap_parameters:=/path/to/costmap-obstacles.yaml \
-    prefer_waypoints_parameters:=/path/to/costmap-prefer-waypoints.yaml \
-    topic_obstacles_gridmap_sub:=/map \
-    topic_static_maps:=/map
-```
-
-All parameters have defaults in the launch file; only the config-file paths
-are typically required to be overridden for a real deployment.
+<a href="https://github.com/mrpt-ros-pkg/mrpt_navigation/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=mrpt-ros-pkg/mrpt_navigation" />
+</a>
