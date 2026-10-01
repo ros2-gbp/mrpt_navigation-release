@@ -1,3 +1,36 @@
+## mrpt_navigation (kilted) - 2.6.0-1
+
+The packages in the `mrpt_navigation` repository were released into the `kilted` distro by running `/usr/bin/bloom-release --rosdistro kilted --track kilted mrpt_navigation` on `Thu, 01 Oct 2026 13:43:23 -0000`
+
+These packages were released:
+- `mrpt_map_server`
+- `mrpt_msgs_bridge`
+- `mrpt_nav_interfaces`
+- `mrpt_navigation`
+- `mrpt_pf_localization`
+- `mrpt_pointcloud_pipeline`
+- `mrpt_reactivenav2d`
+- `mrpt_tps_astar_planner`
+- `mrpt_trajectory_follower`
+- `mrpt_tutorials`
+
+Version of package(s) in repository `mrpt_navigation`:
+
+- upstream repository: https://github.com/mrpt-ros-pkg/mrpt_navigation.git
+- release repository: https://github.com/ros2-gbp/mrpt_navigation-release.git
+- rosdistro version: `2.4.0-1`
+- old version: `2.4.0-1`
+- new version: `2.6.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.14.4`
+- catkin_pkg version: `1.1.1`
+- rosdep version: `0.27.0`
+- rosdistro version: `1.1.0`
+- vcstools version: `0.1.42`
+
+
 ## mrpt_navigation (humble) - 2.6.0-1
 
 The packages in the `mrpt_navigation` repository were released into the `humble` distro by running `/usr/bin/bloom-release --rosdistro humble --track humble mrpt_navigation` on `Thu, 01 Oct 2026 13:38:34 -0000`
