@@ -1,5 +1,11 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.22...3.31)  # Ubuntu 22.04+
 project(mrpt_pointcloud_pipeline)
+
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+  set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+  set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -11,10 +17,12 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
 ## System dependencies are found with CMake's conventions
-find_package(mrpt-maps REQUIRED)
-find_package(mrpt-obs REQUIRED)
-find_package(mrpt-gui REQUIRED)
-find_package(mrpt-ros2bridge REQUIRED)
+find_package(mrpt_maps REQUIRED)
+find_package(mrpt_obs REQUIRED)
+find_package(mrpt_gui REQUIRED)
+find_package(mrpt_libros_bridge REQUIRED)
+# Ensure workspace mrpt_libros_bridge headers take priority over system ones:
+include_directories(BEFORE ${mrpt_libros_bridge_INCLUDE_DIRS})
 
 if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 99)
@@ -53,10 +61,10 @@ target_include_directories(${PROJECT_NAME}_node
 
 target_link_libraries(
   ${PROJECT_NAME}_node PRIVATE
-  mrpt::maps
-  mrpt::obs
-  mrpt::gui
-  mrpt::ros2bridge
+  mrpt::mrpt_maps
+  mrpt::mrpt_obs
+  mrpt::mrpt_gui
+  mrpt_libros_bridge::mrpt_libros_bridge
   mola::mp2p_icp_filters
   rclcpp::rclcpp
   ${rclcpp_components_TARGETS}
@@ -82,10 +90,10 @@ target_include_directories(${PROJECT_NAME}_component
 
 target_link_libraries(
   ${PROJECT_NAME}_component PRIVATE
-  mrpt::maps
-  mrpt::obs
-  mrpt::gui
-  mrpt::ros2bridge
+  mrpt::mrpt_maps
+  mrpt::mrpt_obs
+  mrpt::mrpt_gui
+  mrpt_libros_bridge::mrpt_libros_bridge
   mola::mp2p_icp_filters
   rclcpp::rclcpp
   ${rclcpp_components_TARGETS}

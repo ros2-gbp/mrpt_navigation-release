@@ -1,6 +1,14 @@
-cmake_minimum_required(VERSION 3.5)
+# Backwards compatibility for ROS2 Humble
+#cmake_minimum_required(VERSION 3.22...3.31)  # Ubuntu 22.04+
+cmake_minimum_required(VERSION 3.10)
 
 project(mrpt_nav_interfaces)
+
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+  set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+  set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+endif()
 
 # Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
