@@ -2,6 +2,13 @@
 Changelog for package mrpt_tutorials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.6.1 (2026-10-02)
+------------------
+* Localization demos: start with the PF localized at the simulated robot initial pose
+* demo_astar* launches: start with the PF localized at the simulated robot initial pose
+  Adds an optional pf_params_overrides_file launch argument to mrpt_pf_localization localization.launch.py.
+* Contributors: Jose Luis Blanco-Claraco
+
 2.6.0 (2026-10-01)
 ------------------
 * Merge ros2 into mrpt3
