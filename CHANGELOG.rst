@@ -2,6 +2,9 @@
 Changelog for package mrpt_tps_astar_planner_node
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.6.1 (2026-10-02)
+------------------
+
 2.6.0 (2026-10-01)
 ------------------
 * Merge pull request `#176 <https://github.com/mrpt-ros-pkg/mrpt_navigation/issues/176>`_ from mrpt-ros-pkg/docs/tps-astar-planner-params
