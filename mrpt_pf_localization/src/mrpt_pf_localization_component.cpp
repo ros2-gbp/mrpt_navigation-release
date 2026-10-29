@@ -23,7 +23,7 @@
 #include <mrpt/ros2bridge/time.h>
 #include <mrpt/serialization/CSerializable.h>
 #include <mrpt/system/COutputLogger.h>
-#include <mrpt/version.h>
+#include <mrpt/system/hyperlink.h>
 #include <pose_cov_ops/pose_cov_ops.h>
 
 #include <cmath>
@@ -33,20 +33,6 @@
 
 #include "mrpt_pf_localization_node.h"
 #include "rclcpp_components/register_node_macro.hpp"
-
-#if MRPT_VERSION >= 0x020b08
-#include <mrpt/system/hyperlink.h>
-#else
-namespace mrpt::system	// backwards compatibility:
-{
-std::string hyperlink(
-	const std::string& text, const std::string& uri, bool force_format = false,
-	bool show_uri_anyway = false)
-{
-	return text;
-}
-}  // namespace mrpt::system
-#endif
 
 RCLCPP_COMPONENTS_REGISTER_NODE(PFLocalizationNode);  // Register node to make it composable
 
@@ -221,8 +207,7 @@ PFLocalizationNode::~PFLocalizationNode() = default;
 
 void PFLocalizationNode::reload_params_from_ros()
 {
-	// Use MRPT library the same log level as on ROS nodes (only for
-	// MRPT_VERSION >= 0x150)
+	// Use MRPT library the same log level as on ROS nodes
 	useROSLogLevel();
 
 	// Unify all ROS params into a in-memory YAML block and pass it to the core
@@ -355,13 +340,15 @@ void PFLocalizationNode::loop()
 
 bool PFLocalizationNode::waitForTransform(
 	mrpt::poses::CPose3D& des, const std::string& frame, const std::string& referenceFrame,
-	const int timeoutMilliseconds)
+	const int timeoutMilliseconds, const std::optional<mrpt::Clock::time_point>& stamp)
 {
 	const rclcpp::Duration timeout(0, 1000 * timeoutMilliseconds);
 	try
 	{
+		const tf2::TimePoint when =
+			stamp ? tf2_ros::fromMsg(mrpt::ros2bridge::toROS(*stamp)) : tf2::TimePointZero;
 		geometry_msgs::msg::TransformStamped ref_to_trgFrame = tf_buffer_->lookupTransform(
-			referenceFrame, frame, tf2::TimePointZero, tf2::durationFromSec(timeout.seconds()));
+			referenceFrame, frame, when, tf2::durationFromSec(timeout.seconds()));
 
 		tf2::Transform tf;
 		tf2::fromMsg(ref_to_trgFrame.transform, tf);
@@ -771,8 +758,21 @@ void PFLocalizationNode::update_tf_pub_data()
 
 	MRPT_TODO("Use param: no_update_tolerance");
 
+	// The odom->base_link transform must be taken at the time the estimate
+	// refers to: the robot may have moved since then (e.g. while the filter
+	// was running), and using a later odometry would offset map->odom by
+	// that motion.
+	// (Falls back to the latest one if not available, e.g. not yet received.)
 	mrpt::poses::CPose3D T_base_to_odom;
-	bool base_to_odom_ok = this->waitForTransform(T_base_to_odom, odom_frame_id, base_frame_id);
+	std::optional<mrpt::Clock::time_point> stamp = core_.getLastPoseEstimationStamp();
+	if (stamp &&
+		!tf_buffer_->canTransform(
+			base_frame_id, odom_frame_id, tf2_ros::fromMsg(mrpt::ros2bridge::toROS(*stamp))))
+	{
+		stamp.reset();
+	}
+	bool base_to_odom_ok =
+		this->waitForTransform(T_base_to_odom, odom_frame_id, base_frame_id, 50, stamp);
 	// Note: this wait above typ takes ~50 us
 
 	if (!base_to_odom_ok)
