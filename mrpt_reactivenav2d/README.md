@@ -1,5 +1,11 @@
 # mrpt_reactivenav2d
 
+> **DEPRECATED.** This package is deprecated and will be removed in a future
+> release. Use [mrpt_trajectory_follower](../mrpt_trajectory_follower) together
+> with the [mrpt_tps_astar_planner](../mrpt_tps_astar_planner) instead. It is
+> not part of the anytime and continuous planning of the planner, and it is not
+> covered by the end-to-end tests.
+
 ## Overview
 This package provides a ROS 2 node for reactive navigation for wheeled robots
 using MRPT navigation algorithms (TP-Space).
@@ -85,6 +91,11 @@ to start:
 ### Working rationale
 
 The C++ ROS 2 node comprises XXX
+
+At startup the PTG lookup tables are built in the background, which can take
+tens of seconds. Goals, waypoint sequences and action requests received
+meanwhile are rejected with a warning in the log (`engine initialized` marks
+when the node is ready).
 
 
 ### ROS 2 parameters
