@@ -2,6 +2,19 @@
 Changelog for package mrpt_pf_localization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.7.0 (2026-10-29)
+------------------
+* pf_localization: remove MRPT 2.x compatibility code
+* mrpt_pf_localization: compute map->odom with the odometry at the estimate time
+* Contributors: Jose Luis Blanco-Claraco
+
+2.6.1 (2026-10-02)
+------------------
+* demo_astar* launches: start with the PF localized at the simulated robot initial pose
+  Adds an optional pf_params_overrides_file launch argument to mrpt_pf_localization localization.launch.py.
+* mrpt_pf_localization test: check the result of CRawlog::loadFromRawLogFile()
+* Contributors: Jose Luis Blanco-Claraco
+
 2.6.0 (2026-10-01)
 ------------------
 * Merge pull request `#175 <https://github.com/mrpt-ros-pkg/mrpt_navigation/issues/175>`_ from mrpt-ros-pkg/mrpt3
