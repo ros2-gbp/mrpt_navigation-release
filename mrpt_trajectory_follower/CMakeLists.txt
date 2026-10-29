@@ -10,6 +10,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -17,6 +18,7 @@ find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(mrpt_nav_interfaces REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 find_package(mrpt_libros_bridge REQUIRED)
@@ -41,11 +43,17 @@ endif()
 ###########
 ## Build ##
 ###########
-add_executable(${PROJECT_NAME}_node
-  src/mrpt_trajectory_follower_node.cpp
+# Node implementation, loadable as a composable node:
+add_library(${PROJECT_NAME}_component SHARED
+  src/${PROJECT_NAME}_component.cpp
 )
 
-target_link_libraries(${PROJECT_NAME}_node PRIVATE
+target_include_directories(${PROJECT_NAME}_component
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+
+target_link_libraries(${PROJECT_NAME}_component PUBLIC
   mrpt_libros_bridge::mrpt_libros_bridge
   mrpt::mrpt_maps
   mrpt::mrpt_math
@@ -53,6 +61,7 @@ target_link_libraries(${PROJECT_NAME}_node PRIVATE
   mrpt::mrpt_containers
   mpp::mrpt_path_planning
   rclcpp::rclcpp
+  ${rclcpp_components_TARGETS}
   ${nav_msgs_TARGETS}
   ${geometry_msgs_TARGETS}
   ${sensor_msgs_TARGETS}
@@ -60,11 +69,34 @@ target_link_libraries(${PROJECT_NAME}_node PRIVATE
   tf2::tf2
   ${tf2_ros_TARGETS}
   ${tf2_geometry_msgs_TARGETS}
+  ${mrpt_nav_interfaces_TARGETS}
+)
+
+rclcpp_components_register_node(
+  ${PROJECT_NAME}_component
+  PLUGIN "mrpt_trajectory_follower::TrajectoryFollowerNode"
+  EXECUTABLE ${PROJECT_NAME}_composable
+)
+
+# Standalone executable:
+add_executable(${PROJECT_NAME}_node
+  src/main.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}_node PRIVATE
+  ${PROJECT_NAME}_component
+  rclcpp::rclcpp
 )
 
 #############
 ## Install ##
 #############
+install(TARGETS ${PROJECT_NAME}_component
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
 install(TARGETS ${PROJECT_NAME}_node
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -81,6 +113,20 @@ install(DIRECTORY
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
+
+  # Closed-loop maneuvers of a car-like robot between narrow aisles, in
+  # simulation (mvsim, headless).
+  find_package(ament_cmake_ros REQUIRED)
+  ament_add_ros_isolated_pytest_test(test_aisle_maneuvers
+    test/test_aisle_maneuvers.py
+    TIMEOUT 300
+  )
+
+  # Commanded to move, but stuck against an obstacle it doesn't see: Blocked.
+  ament_add_ros_isolated_pytest_test(test_stall_blocked
+    test/test_stall_blocked.py
+    TIMEOUT 300
+  )
 endif()
 
 ament_package()
