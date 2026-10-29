@@ -2,6 +2,17 @@
 Changelog for package mrpt_reactivenav2d
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.7.0 (2026-10-29)
+------------------
+* Deprecate mrpt_reactivenav2d; add goal manager robustness integration tests
+* mrpt_reactivenav2d: store PTG cache files in the user cache directory instead of the working directory
+* Do not shut down the ROS context on PTG init failure; log readiness after it is set
+* Build PTG lookup tables in background and warn about goals received meanwhile
+* Contributors: Jose Luis Blanco-Claraco
+
+2.6.1 (2026-10-02)
+------------------
+
 2.6.0 (2026-10-01)
 ------------------
 * Merge pull request `#175 <https://github.com/mrpt-ros-pkg/mrpt_navigation/issues/175>`_ from mrpt-ros-pkg/mrpt3

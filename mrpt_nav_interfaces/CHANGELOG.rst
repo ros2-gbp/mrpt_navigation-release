@@ -2,6 +2,17 @@
 Changelog for package mrpt_nav_interfaces
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.7.0 (2026-10-29)
+------------------
+* Planner: navigation status stream, HUD markers and richer action feedback
+* Goal manager follow-ups: status with goal id, stricter new-path checks, rewiring guard, costmap refresh
+* mrpt_nav_interfaces: ReferencePath message; optional details in NavigationFeedback
+* mrpt_tps_astar_planner: plan requests can ignore obstacles inside given polygons
+* Contributors: Jose Luis Blanco-Claraco
+
+2.6.1 (2026-10-02)
+------------------
+
 2.6.0 (2026-10-01)
 ------------------
 * Merge ros2 into mrpt3

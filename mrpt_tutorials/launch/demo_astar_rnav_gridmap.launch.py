@@ -1,13 +1,24 @@
 # ROS 2 launch file for example in mrpt_tutorials
 #
+# A* planner (mrpt_tps_astar_planner) + reactive navigator (mrpt_reactivenav2d)
+# on a simulated differential-drive robot.
+#
+# DEPRECATED: mrpt_reactivenav2d will be removed in a future release. See
+# demo_astar_trajectory_follower_gridmap.launch.py instead.
+#
+# All nodes except mvsim run on the simulation clock published by mvsim
+# (launch argument use_sim_time, default True), so they stay consistent with
+# sensor timestamps even if the simulation runs slower than real time.
+#
 # See repo online: https://github.com/mrpt-ros-pkg/mrpt_navigation
 #
 
 from launch import LaunchDescription
 from launch.substitutions import TextSubstitution
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
+from launch_ros.actions import Node, SetParameter
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from ament_index_python import get_package_share_directory
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 import os
@@ -28,6 +39,7 @@ def generate_launch_description():
             'topic_static_maps': '/mrpt_map/map_gridmap',
             'topic_wp_seq_pub': '/waypoints',
             # 'problem_world_bbox_ignore_obstacles': 'True',
+            'max_computation_time': LaunchConfiguration('max_computation_time'),
         }.items()
     )
 
@@ -48,7 +60,10 @@ def generate_launch_description():
         parameters=[
             # os.path.join(tutsDir, 'params', 'mvsim_ros2_params.yaml'),
             {
-                "world_file": os.path.join(tutsDir, 'mvsim', 'demo_world2.world.xml'),
+                # Diff-drive robot, matching the PTGs of the planner and the
+                # reactive navigator (see the Ackermann car demo in
+                # demo_astar_trajectory_follower_gridmap.launch.py):
+                "world_file": os.path.join(tutsDir, 'mvsim', 'demo_world2_diffdrive.world.xml'),
                 "do_fake_localization": False,
                 "headless": True,
             }]
@@ -63,6 +78,9 @@ def generate_launch_description():
             'log_level': 'INFO',
             'log_level_core': 'INFO',
             'topic_sensors_2d_scan': '/laser1',
+            # Start localized at the robot pose in the mvsim world file:
+            'pf_params_overrides_file': os.path.join(
+                tutsDir, 'params', 'pf-initial-pose-demo_world2.yaml'),
             'topic_sensors_point_clouds': '',
             'base_link_frame_id': 'base_link',
             'odom_frame_id': 'odom',
@@ -78,7 +96,7 @@ def generate_launch_description():
         launch_arguments={
             'use_composable': 'false',
             'log_level': 'INFO',
-            'scan_topic_name': '/laser1, /laser2',
+            'scan_topic_name': '/laser1',
             'points_topic_name': '/lidar1_points',
             'filter_output_topic_name': '/local_map_pointcloud',
             'time_window': '0.20',
@@ -107,15 +125,29 @@ def generate_launch_description():
         package='rviz2',
         executable='rviz2',
         name='rviz2',
+        condition=IfCondition(LaunchConfiguration('use_rviz')),
         arguments=[
                 '-d', [os.path.join(tutsDir, 'rviz2', 'gridmap.rviz')]]
     )
     return LaunchDescription([
-        mrpt_map_launch,
-        mrpt_astar_planner_launch,
+        DeclareLaunchArgument(
+            'max_computation_time', default_value='0.0',
+            description='Max A* computation time per plan request [s] (<=0: planner file value)'),
+        DeclareLaunchArgument(
+            'use_rviz', default_value='True',
+            description='Whether to launch RViz2 (False for headless runs)'),
+        DeclareLaunchArgument(
+            'use_sim_time', default_value='True',
+            description='Run the nodes on the simulation clock from mvsim'),
         mvsim_node,
-        pf_localization_launch,
-        pointcloud_pipeline_launch,
-        node_rnav2d_launch,
-        rviz2_node
+        GroupAction([
+            SetParameter(name='use_sim_time',
+                         value=LaunchConfiguration('use_sim_time')),
+            mrpt_map_launch,
+            mrpt_astar_planner_launch,
+            pf_localization_launch,
+            pointcloud_pipeline_launch,
+            node_rnav2d_launch,
+            rviz2_node,
+        ]),
     ])
