@@ -37,7 +37,7 @@ Related to sensor pipelines:
   - For 2D laser scanners, to keep a memory of obstacles that get out of the sensor field of view.
 
 Related to autonomous navigation:
-* [mrpt_reactivenav2d](mrpt_reactivenav2d): A pure reactive navigator for polygonal robots on 2D worlds.
+* [mrpt_reactivenav2d](mrpt_reactivenav2d): **Deprecated**, use `mrpt_trajectory_follower` with `mrpt_tps_astar_planner` instead. A pure reactive navigator for polygonal robots on 2D worlds.
 * [mrpt_tps_astar_planner](mrpt_tps_astar_planner): A path planner based on PTG trajectories using A* in a SE(2) lattice.
 
 Others:
@@ -73,6 +73,49 @@ Individual package build status
 
 Each cell shows one badge per OS and architecture: Ubuntu `amd64` and `arm64`,
 plus RHEL and Fedora `x86_64` where the distro targets them.
+
+Navigation demo and tests
+----------------------------------
+A* planning (`mrpt_tps_astar_planner`) + path following
+(`mrpt_trajectory_follower`) + localization (`mrpt_pf_localization`) in the
+[mvsim](https://github.com/MRPT/mvsim) simulator. Set goals with RViz "2D Goal
+Pose":
+
+    ros2 launch mrpt_tutorials demo_astar_trajectory_follower_gridmap.launch.py \
+        robot:=ackermann speed_limit:=1.0
+
+- `robot`: `ackermann` (car-like) or `diffdrive` (Jackal-like, which can also
+  rotate in place: its plans may include rotations, which the follower executes
+  by stopping there).
+- `speed_limit` [m/s]: `0` for the platform max speed. It can be changed at
+  run time with `ros2 param set /mrpt_trajectory_follower speed_limit 2.0`.
+
+The follower publishes `geometry_msgs/Twist` on `topic_cmd_vel_pub`, or
+`geometry_msgs/TwistStamped` (frame `frame_id_robot`) with the launch argument
+`cmd_vel_stamped:=True`, as expected by many ROS 2 Jazzy robots (e.g. those
+using `twist_mux` or `diff_drive_controller` with stamped commands).
+
+A Foxglove layout equivalent to the RViz setup is in
+`mrpt_tutorials/foxglove/astar_demo.json` (import it from the Foxglove layout
+menu, with `foxglove_bridge` running).
+
+`demo_astar_trajectory_follower_street.launch.py` is the same demo (ackermann
+robot) in a street with parking bays at different angles, to try the planner on
+parking maneuvers. `demo_astar_trajectory_follower_mvsim_3d.launch.py` runs it in
+the mvsim greenhouse (Ackermann robot, `world:=greenhouse`) and warehouse
+(Jackal, `world:=warehouse`) worlds, with live obstacles from 3D LiDARs
+(`mrpt_pointcloud_pipeline`), a static obstacle map built from the world itself
+(`mrpt_tutorials/maps/generate_mvsim_obstacle_maps.sh`, with `mvsim slice`),
+ground-truth localization, and its own Foxglove layout
+(`mrpt_tutorials/foxglove/mvsim_3d_nav.json`).
+`demo_astar_rnav_gridmap.launch.py` uses the older, deprecated
+`mrpt_reactivenav2d` navigator instead of the trajectory follower.
+
+End-to-end tests (headless, both robots, a battery of A->B navigations checking
+there are no collisions, the robot stays on its path, and goals are reached or
+reported as failed in time; the car must reach only some of them):
+
+    colcon test --packages-select mrpt_navigation
 
 
 
