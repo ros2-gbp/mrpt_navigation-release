@@ -1,0 +1,13 @@
+Source: ros-lyrical-mrpt-navigation
+Section: misc
+Priority: optional
+Maintainer: "Jose-Luis Blanco-Claraco" <jlblanco@ual.es>
+Build-Depends: debhelper (>= 9.0.0), ros-lyrical-action-msgs <!nocheck>, ros-lyrical-ament-cmake, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-pytest <!nocheck>, ros-lyrical-ament-cmake-ros <!nocheck>, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-geometry-msgs <!nocheck>, ros-lyrical-launch-testing <!nocheck>, ros-lyrical-launch-testing-ros <!nocheck>, ros-lyrical-mrpt-map-server, ros-lyrical-mrpt-msgs-bridge, ros-lyrical-mrpt-nav-interfaces, ros-lyrical-mrpt-nav-interfaces <!nocheck>, ros-lyrical-mrpt-pf-localization, ros-lyrical-mrpt-pointcloud-pipeline, ros-lyrical-mrpt-reactivenav2d, ros-lyrical-mrpt-tps-astar-planner, ros-lyrical-mrpt-trajectory-follower, ros-lyrical-mrpt-tutorials, ros-lyrical-mvsim <!nocheck>, ros-lyrical-nav-msgs <!nocheck>, ros-lyrical-rclpy <!nocheck>, ros-lyrical-sensor-msgs <!nocheck>, ros-lyrical-sensor-msgs-py <!nocheck>, ros-lyrical-std-msgs <!nocheck>, ros-lyrical-tf2-ros-py <!nocheck>, ros-lyrical-ros-workspace
+Homepage: https://github.com/mrpt-ros-pkg/mrpt_navigation
+Standards-Version: 3.9.2
+
+Package: ros-lyrical-mrpt-navigation
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-lyrical-ament-cmake-lint-cmake, ros-lyrical-ament-cmake-xmllint, ros-lyrical-ament-lint-auto, ros-lyrical-mrpt-map-server, ros-lyrical-mrpt-msgs-bridge, ros-lyrical-mrpt-nav-interfaces, ros-lyrical-mrpt-pf-localization, ros-lyrical-mrpt-pointcloud-pipeline, ros-lyrical-mrpt-reactivenav2d, ros-lyrical-mrpt-tps-astar-planner, ros-lyrical-mrpt-trajectory-follower, ros-lyrical-mrpt-tutorials, ros-lyrical-ros-workspace
+Description: Tools related to the Mobile Robot Programming Toolkit (MRPT).
+ Refer to https://wiki.ros.org/mrpt_navigation for further documentation.
