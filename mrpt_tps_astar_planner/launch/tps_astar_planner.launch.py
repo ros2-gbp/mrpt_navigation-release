@@ -1,6 +1,8 @@
 from launch import LaunchDescription
-from launch_ros.actions import Node
+from launch_ros.actions import Node, LoadComposableNodes
+from launch_ros.descriptions import ComposableNode, ParameterValue
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration
 from launch.substitutions import Command
 from ament_index_python.packages import get_package_share_directory
@@ -95,52 +97,184 @@ def generate_launch_description():
         'astar_skip_refine', default_value='false',
         description='If true, the refine stage after A* will be skipped')
 
-    # Node configuration
+    reverse_motion_cost_factor_arg = DeclareLaunchArgument(
+        'reverse_motion_cost_factor', default_value='1.0',
+        description='Extra cost per second of reverse motion (0: reversing costs the same as driving forward)')
+
+    turning_cost_factor_arg = DeclareLaunchArgument(
+        'turning_cost_factor', default_value='1.0',
+        description='Extra cost per radian of heading change, so paths drive straight unless turning pays off (0: no penalty)')
+
+    max_computation_time_arg = DeclareLaunchArgument(
+        'max_computation_time', default_value='0.0',
+        description='Maximum A* computation time per plan request [s]. '
+        '<=0: use maximumComputationTime from planner_parameters')
+
+    # Goal manager (goals from the goal topic or the navigate_goal action):
+    goal_manager_args = [
+        DeclareLaunchArgument(
+            'anytime_first_path_time', default_value='0.0',
+            description='Publish the best partial path after this time [s] if the goal is not '
+            'reached yet by the search (<=0: only publish full paths). Partial paths and '
+            'continuous planning need mrpt_trajectory_follower (they use its status to end '
+            'goals): disabled by default, enabled in the follower demos'),
+        DeclareLaunchArgument(
+            'anytime_min_progress', default_value='1.0',
+            description='Minimum progress toward the goal [m] of a partial path'),
+        DeclareLaunchArgument(
+            'anytime_max_partial_length', default_value='10.0',
+            description='Partial paths are cut to this length [m], so a dead end does not '
+            'take the robot far (<=0: no limit)'),
+        DeclareLaunchArgument(
+            'continuous_planning', default_value='false',
+            description='Keep replanning while the robot drives: check the path against new '
+            'obstacles, and go on with the search from ahead of the robot. If both this and '
+            'anytime_first_path_time are disabled, goals are planned once as one-shot plans'),
+        DeclareLaunchArgument(
+            'replan_period', default_value='1.0',
+            description='Period of the replanning cycles [s]'),
+        DeclareLaunchArgument(
+            'stitch_lookahead_time', default_value='3.0',
+            description='The search goes on from this far ahead [s] of the robot along its '
+            'path (at max speed): the path up to there does not change anymore'),
+        DeclareLaunchArgument(
+            'start_lookahead_time', default_value='3.0',
+            description='New searches from the robot (new goals, restarts) start this far ahead '
+            '[s] (at the current speed) along the path being followed (<=0: from the robot pose)'),
+        DeclareLaunchArgument(
+            'no_progress_timeout', default_value='60.0',
+            description='A goal fails if the robot does not get closer to it for this long [s] '
+            '(meanwhile, blocked paths and failed searches are replanned; <=0: never)'),
+        DeclareLaunchArgument(
+            'no_progress_warn_fraction', default_value='0.5',
+            description='The navigation status turns to STALLED (a warning) after this fraction '
+            'of no_progress_timeout without progress (<=0: never)'),
+        DeclareLaunchArgument(
+            'publish_markers', default_value='true',
+            description='Publish ~/navigation_markers, to show the navigation status in 3D views'),
+        DeclareLaunchArgument(
+            'blocked_obstacles_memory', default_value='30.0',
+            description='Obstacle points that blocked a path of a goal are kept in its searches '
+            'for this long [s], also when out of sight (<=0: not kept)'),
+        DeclareLaunchArgument(
+            'max_planning_restarts', default_value='0',
+            description='If >0, a goal also fails after this many searches restarted from '
+            'scratch in a row without reaching it (<=0: no limit)'),
+        DeclareLaunchArgument(
+            'topic_follower_status_sub', default_value='/mrpt_trajectory_follower/status',
+            description='Path follower status topic (to know when a goal is reached or fails)'),
+        DeclareLaunchArgument(
+            'topic_follower_status_ex_sub', default_value='/mrpt_trajectory_follower/status_ex',
+            description='Path follower status with the id of the path it refers to (used '
+            'instead of the plain status topic if not empty)'),
+    ]
+
+    use_composable = LaunchConfiguration('use_composable')
+
+    use_composable_arg = DeclareLaunchArgument(
+        'use_composable', default_value='false',
+        description='If true, load as a composable node into container_name instead of a standalone node. Use a multi-threaded container (component_container_mt) to let planning service calls run concurrently')
+
+    container_name_arg = DeclareLaunchArgument(
+        'container_name', default_value='',
+        description='Name of the composable node container (required when use_composable:=true)')
+
+    # Node parameters, shared by the standalone and the composable node:
+    node_parameters = [
+        {'topic_goal_sub': LaunchConfiguration('topic_goal_sub')},
+        {'show_gui': LaunchConfiguration('show_gui')},
+        {'topic_obstacles_gridmap_sub': LaunchConfiguration(
+            'topic_obstacles_gridmap_sub')},
+        {'topic_obstacles_sub': LaunchConfiguration(
+            'topic_obstacles_sub')},
+        {'topic_static_maps': LaunchConfiguration('topic_static_maps')},
+        {'topic_wp_seq_pub': LaunchConfiguration('topic_wp_seq_pub')},
+        {'frame_id_robot': LaunchConfiguration('frame_id_robot')},
+        {'frame_id_map': LaunchConfiguration('frame_id_map')},
+        {'mid_waypoints_allowed_distance': LaunchConfiguration(
+            'mid_waypoints_allowed_distance')},
+        {'final_waypoint_allowed_distance': LaunchConfiguration(
+            'final_waypoint_allowed_distance')},
+        {'mid_waypoints_allow_skip': LaunchConfiguration(
+            'mid_waypoints_allow_skip')},
+        {'final_waypoint_allow_skip': LaunchConfiguration(
+            'final_waypoint_allow_skip')},
+        {'mid_waypoints_ignore_heading': LaunchConfiguration(
+            'mid_waypoints_ignore_heading')},
+        {'final_waypoint_ignore_heading': LaunchConfiguration(
+            'final_waypoint_ignore_heading')},
+        {'problem_world_bbox_margin': LaunchConfiguration(
+            'problem_world_bbox_margin')},
+        {'problem_world_bbox_ignore_obstacles': LaunchConfiguration(
+            'problem_world_bbox_ignore_obstacles')},
+        {'astar_skip_refine': LaunchConfiguration('astar_skip_refine')},
+        {'reverse_motion_cost_factor': ParameterValue(LaunchConfiguration(
+            'reverse_motion_cost_factor'), value_type=float)},
+        {'turning_cost_factor': ParameterValue(LaunchConfiguration(
+            'turning_cost_factor'), value_type=float)},
+        {'max_computation_time': ParameterValue(LaunchConfiguration(
+            'max_computation_time'), value_type=float)},
+        {'anytime_first_path_time': ParameterValue(LaunchConfiguration(
+            'anytime_first_path_time'), value_type=float)},
+        {'anytime_min_progress': ParameterValue(LaunchConfiguration(
+            'anytime_min_progress'), value_type=float)},
+        {'anytime_max_partial_length': ParameterValue(LaunchConfiguration(
+            'anytime_max_partial_length'), value_type=float)},
+        {'continuous_planning': ParameterValue(LaunchConfiguration(
+            'continuous_planning'), value_type=bool)},
+        {'replan_period': ParameterValue(LaunchConfiguration(
+            'replan_period'), value_type=float)},
+        {'stitch_lookahead_time': ParameterValue(LaunchConfiguration(
+            'stitch_lookahead_time'), value_type=float)},
+        {'start_lookahead_time': ParameterValue(LaunchConfiguration(
+            'start_lookahead_time'), value_type=float)},
+        {'no_progress_timeout': ParameterValue(LaunchConfiguration(
+            'no_progress_timeout'), value_type=float)},
+        {'no_progress_warn_fraction': ParameterValue(LaunchConfiguration(
+            'no_progress_warn_fraction'), value_type=float)},
+        {'publish_markers': ParameterValue(LaunchConfiguration(
+            'publish_markers'), value_type=bool)},
+        {'blocked_obstacles_memory': ParameterValue(LaunchConfiguration(
+            'blocked_obstacles_memory'), value_type=float)},
+        {'max_planning_restarts': ParameterValue(LaunchConfiguration(
+            'max_planning_restarts'), value_type=int)},
+        {'topic_follower_status_sub': LaunchConfiguration('topic_follower_status_sub')},
+        {'topic_follower_status_ex_sub': LaunchConfiguration('topic_follower_status_ex_sub')},
+        # Param files:
+        {'planner_parameters': LaunchConfiguration('planner_parameters')},
+        {'global_costmap_parameters': LaunchConfiguration(
+            'global_costmap_parameters')},
+        {'prefer_waypoints_parameters': LaunchConfiguration(
+            'prefer_waypoints_parameters')},
+        {'ptg_ini': LaunchConfiguration('ptg_ini')},
+    ]
+
     tps_astar_nav_node = Node(
+        condition=UnlessCondition(use_composable),
         package='mrpt_tps_astar_planner',
         executable='mrpt_tps_astar_planner_node',
         name='mrpt_tps_astar_planner_node',
         output='screen',
-        parameters=[
-            {'topic_goal_sub': LaunchConfiguration('topic_goal_sub')},
-            {'show_gui': LaunchConfiguration('show_gui')},
-            {'topic_obstacles_gridmap_sub': LaunchConfiguration(
-                'topic_obstacles_gridmap_sub')},
-            {'topic_obstacles_sub': LaunchConfiguration(
-                'topic_obstacles_sub')},
-            {'topic_static_maps': LaunchConfiguration('topic_static_maps')},
-            {'topic_wp_seq_pub': LaunchConfiguration('topic_wp_seq_pub')},
-            {'frame_id_robot': LaunchConfiguration('frame_id_robot')},
-            {'frame_id_map': LaunchConfiguration('frame_id_map')},
-            {'mid_waypoints_allowed_distance': LaunchConfiguration(
-                'mid_waypoints_allowed_distance')},
-            {'final_waypoint_allowed_distance': LaunchConfiguration(
-                'final_waypoint_allowed_distance')},
-            {'mid_waypoints_allow_skip': LaunchConfiguration(
-                'mid_waypoints_allow_skip')},
-            {'final_waypoint_allow_skip': LaunchConfiguration(
-                'final_waypoint_allow_skip')},
-            {'mid_waypoints_ignore_heading': LaunchConfiguration(
-                'mid_waypoints_ignore_heading')},
-            {'final_waypoint_ignore_heading': LaunchConfiguration(
-                'final_waypoint_ignore_heading')},
-            {'problem_world_bbox_margin': LaunchConfiguration(
-                'problem_world_bbox_margin')},
-            {'problem_world_bbox_ignore_obstacles': LaunchConfiguration(
-                'problem_world_bbox_ignore_obstacles')},
-            {'astar_skip_refine': LaunchConfiguration('astar_skip_refine')},
-            # Param files:
-            {'planner_parameters': LaunchConfiguration('planner_parameters')},
-            {'global_costmap_parameters': LaunchConfiguration(
-                'global_costmap_parameters')},
-            {'prefer_waypoints_parameters': LaunchConfiguration(
-                'prefer_waypoints_parameters')},
-            {'ptg_ini': LaunchConfiguration('ptg_ini')},
+        parameters=node_parameters,
+    )
+
+    composable_tps_astar_nav_node = LoadComposableNodes(
+        condition=IfCondition(use_composable),
+        target_container=LaunchConfiguration('container_name'),
+        composable_node_descriptions=[
+            ComposableNode(
+                package='mrpt_tps_astar_planner',
+                name='mrpt_tps_astar_planner_node',
+                plugin='mrpt_tps_astar_planner::TPS_Astar_Planner_Node',
+                parameters=node_parameters,
+            )
         ]
     )
 
     # Launch description
     return LaunchDescription([
+        use_composable_arg,
+        container_name_arg,
         topic_goal_sub,
         show_gui,
         topic_obstacles_gridmap_sub,
@@ -162,5 +296,10 @@ def generate_launch_description():
         problem_world_bbox_margin_arg,
         problem_world_bbox_ignore_obstacles_arg,
         astar_skip_refine_arg,
-        tps_astar_nav_node
+        reverse_motion_cost_factor_arg,
+        turning_cost_factor_arg,
+        max_computation_time_arg,
+        *goal_manager_args,
+        tps_astar_nav_node,
+        composable_tps_astar_nav_node,
     ])
