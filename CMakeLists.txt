@@ -11,6 +11,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs)
 find_package(sensor_msgs REQUIRED)
@@ -63,25 +64,29 @@ endif()
 ## Build ##
 ###########
 
-## Declare a cpp executable
-add_executable(${PROJECT_NAME}_node
-  src/mrpt_tps_astar_planner_node.cpp
+# Node implementation, loadable as a composable node:
+add_library(${PROJECT_NAME}_component SHARED
+  src/${PROJECT_NAME}_component.cpp
+  src/goal_frame.cpp
+  src/goal_manager.cpp
+  src/navigation_status.cpp
+  src/obstacle_regions.cpp
 )
 
-#target_include_directories(${PROJECT_NAME}_node
-#                          PUBLIC
-#                          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-#                          $<INSTALL_INTERFACE:include>
-#)
+target_include_directories(${PROJECT_NAME}_component
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node PRIVATE
+target_link_libraries(${PROJECT_NAME}_component PUBLIC
   mrpt::mrpt_nav
   mrpt::mrpt_kinematics
   mrpt_libros_bridge::mrpt_libros_bridge
   mpp::mrpt_path_planning
   mpp::mrpt_path_planning_viz
   rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
   ${rclcpp_components_TARGETS}
   ${nav_msgs_TARGETS}
   ${sensor_msgs_TARGETS}
@@ -94,6 +99,22 @@ target_link_libraries(${PROJECT_NAME}_node PRIVATE
   ${visualization_msgs_TARGETS}
 )
 
+rclcpp_components_register_node(
+  ${PROJECT_NAME}_component
+  PLUGIN "mrpt_tps_astar_planner::TPS_Astar_Planner_Node"
+  EXECUTABLE ${PROJECT_NAME}_composable
+)
+
+# Standalone executable (multi-threaded executor):
+add_executable(${PROJECT_NAME}_node
+  src/main.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}_node PRIVATE
+  ${PROJECT_NAME}_component
+  rclcpp::rclcpp
+)
+
 #############
 ## Install ##
 #############
@@ -103,6 +124,12 @@ target_link_libraries(${PROJECT_NAME}_node PRIVATE
 
 
 ## Mark executables and/or libraries for installation
+install(TARGETS ${PROJECT_NAME}_component
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
 install(TARGETS ${PROJECT_NAME}_node
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -126,6 +153,45 @@ if(BUILD_TESTING)
   # uncomment the line when this package is not in a git repo
   #set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_obstacle_regions
+    test/test_obstacle_regions.cpp
+    src/obstacle_regions.cpp)
+  target_include_directories(test_obstacle_regions PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(test_obstacle_regions mrpt::mrpt_maps ${geometry_msgs_TARGETS})
+
+  ament_add_gtest(test_path_validation
+    test/test_path_validation.cpp)
+  target_include_directories(test_path_validation PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(test_path_validation mrpt::mrpt_maps mrpt::mrpt_math)
+
+  ament_add_gtest(test_navigation_status
+    test/test_navigation_status.cpp
+    src/navigation_status.cpp)
+  target_include_directories(test_navigation_status PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(test_navigation_status
+    mrpt::mrpt_math rclcpp::rclcpp
+    ${mrpt_nav_interfaces_TARGETS} ${visualization_msgs_TARGETS} ${geometry_msgs_TARGETS})
+
+  # Goal frame handling: the helper alone, then the whole node with TF.
+  ament_add_gtest(test_goal_frame
+    test/test_goal_frame.cpp
+    src/goal_frame.cpp)
+  target_include_directories(test_goal_frame PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(test_goal_frame
+    mrpt::mrpt_math tf2::tf2 ${geometry_msgs_TARGETS} ${tf2_geometry_msgs_TARGETS})
+
+  ament_add_gtest(test_node_goal_frame
+    test/test_node_goal_frame.cpp
+    TIMEOUT 300)
+  target_compile_definitions(test_node_goal_frame PRIVATE
+    MRPT_TPS_ASTAR_PLANNER_CONFIGS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/configs")
+  target_link_libraries(test_node_goal_frame ${PROJECT_NAME}_component)
 endif()
 
 ament_package()
