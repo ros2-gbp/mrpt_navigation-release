@@ -9,6 +9,7 @@
 #include <mrpt/ros2bridge/time.h>
 #include <mrpt_pointcloud_pipeline/mrpt_pointcloud_pipeline_node.h>
 
+#include <algorithm>
 #include <sstream>
 
 // for now, not needed (node=executable)
@@ -73,40 +74,88 @@ void LocalObstaclesNode::on_do_publish()
 		CTimeLoggerEntry tle(m_profiler, "onDoPublish.removingOld");
 		std::lock_guard<std::mutex> lck(m_hist_obs_mtx);
 
-		// Purge old obs:
-		if (!m_hist_obs.empty())
+		// Place each observation with the robot pose at its time, once known.
+		// The odometry may arrive after the sensor data: wait for it up to
+		// tf_max_wait, then drop the observation rather than misplace it.
+		const double now = this->get_clock()->now().seconds();
+		for (auto it = m_hist_obs.begin(); it != m_hist_obs.end();)
 		{
-			const double last_time = m_hist_obs.rbegin()->first;
-			obs_list_t::iterator it_first_valid = m_hist_obs.lower_bound(last_time - m_time_window);
-			const size_t nToRemove = std::distance(m_hist_obs.begin(), it_first_valid);
-			RCLCPP_DEBUG(
-				get_logger(), "[onDoPublish] Removing %u old entries, last_time=%lf",
-				static_cast<unsigned int>(nToRemove), last_time);
-			m_hist_obs.erase(m_hist_obs.begin(), it_first_valid);
+			auto& [timestamp, ipt] = *it;
+			if (!ipt.robot_pose)
+			{
+				ipt.robot_pose = robot_pose_at(ipt.stamp);
+				if (ipt.robot_pose)
+				{
+					m_max_pose_wait = std::max(m_max_pose_wait, now - timestamp);
+				}
+			}
+			if (!ipt.robot_pose && now - timestamp > m_tf_max_wait)
+			{
+				RCLCPP_WARN_THROTTLE(
+					get_logger(), *get_clock(), 5000,
+					"Dropping an observation: no robot pose at its time after %.2f s (latest "
+					"one: %.2f s older)",
+					m_tf_max_wait, timestamp - latest_robot_pose_stamp());
+				it = m_hist_obs.erase(it);
+				continue;
+			}
+			++it;
 		}
+		if (now - m_last_pose_wait_report > 10.0)
+		{
+			if (m_max_pose_wait > 0.15)
+			{
+				RCLCPP_INFO(
+					get_logger(), "Robot poses arrived up to %.2f s after their sensor data",
+					m_max_pose_wait);
+			}
+			m_max_pose_wait = 0;
+			m_last_pose_wait_report = now;
+		}
+
+		// Purge old obs, keeping those within the time window of the latest
+		// one already placed (newer ones may still be waiting for their pose):
+		double last_time = 0;
+		for (auto it = m_hist_obs.rbegin(); it != m_hist_obs.rend(); ++it)
+		{
+			if (it->second.robot_pose)
+			{
+				last_time = it->first;
+				break;
+			}
+		}
+		if (last_time > 0)
+		{
+			for (auto it = m_hist_obs.begin();
+				 it != m_hist_obs.end() && it->first < last_time - m_time_window;)
+			{
+				it = m_hist_obs.erase(it);
+			}
+		}
+
 		// Local copy in this thread:
-		obs = m_hist_obs;
+		for (const auto& entry : m_hist_obs)
+		{
+			if (entry.second.robot_pose)
+			{
+				obs.insert(entry);
+			}
+		}
 	}
 
-	// Keep only one obs per topic?
+	// Keep only the latest obs per topic?
 	if (m_one_observation_per_topic)
 	{
-		// TODO(jlbc): Remove in reverse order to keep the latest one!
 		std::set<std::string> foundTopics;
-		for (auto it = obs.begin(); it != obs.end();)
+		obs_list_t latest;
+		for (auto it = obs.rbegin(); it != obs.rend(); ++it)
 		{
-			const auto& topic = it->second.sourceTopic;
-			if (foundTopics.count(topic) != 0)
+			if (foundTopics.insert(it->second.sourceTopic).second)
 			{
-				// duplicated entry, delete:
-				it = obs.erase(it);
-			}
-			else
-			{
-				foundTopics.insert(topic);
-				++it;  // move on:
+				latest.insert(*it);
 			}
 		}
+		obs = std::move(latest);
 	}
 
 	RCLCPP_DEBUG(
@@ -123,30 +172,12 @@ void LocalObstaclesNode::on_do_publish()
 	{
 		CTimeLoggerEntry tle2(m_profiler, "on_do_publish.buildLocalMap");
 
-		// Get the latest robot pose in the reference frame (typ: /odom ->
-		// /base_link)
-		// so we can build the local map RELATIVE to it:
-
-		try
-		{
-			geometry_msgs::msg::TransformStamped tx;
-			tx = m_tf_buffer->lookupTransform(
-				m_frameid_reference, m_frameid_robot, tf2::TimePointZero);
-
-			tf2::Transform tfx;
-			tf2::fromMsg(tx.transform, tfx);
-			curRobotPose = mrpt::ros2bridge::fromROS(tfx);
-		}
-		catch (const tf2::ExtrapolationException& ex)
-		{
-			RCLCPP_ERROR(get_logger(), "%s", ex.what());
-			return;
-		}
+		// Build the local map relative to the robot pose at the time of the
+		// latest observation, so it is consistent with the published stamp:
+		curRobotPose = *obs.rbegin()->second.robot_pose;
 
 		RCLCPP_DEBUG(
-			get_logger(),
-			"[onDoPublish] Building local map relative to latest robot "
-			"pose: %s",
+			get_logger(), "[onDoPublish] Building local map relative to robot pose: %s",
 			curRobotPose.asString().c_str());
 
 		// For each observation: compute relative robot pose & insert obs
@@ -154,13 +185,15 @@ void LocalObstaclesNode::on_do_publish()
 		for (const auto& [timestamp, ipt] : obs)
 		{
 			// Relative pose in the past:
-			const mrpt::poses::CPose3D relPose = ipt.robot_pose - curRobotPose;
+			const mrpt::poses::CPose3D relPose = *ipt.robot_pose - curRobotPose;
 
 			// Insert obs:
 			CTimeLoggerEntry tleObsFilter(m_profiler, "on_do_publish.apply_per_obs_pipeline");
 
-			// Apply optional generators for auxiliary map layers, etc:
-			mp2p_icp_filters::apply_generators(m_generator, *ipt.observation, mm);
+			// Apply optional generators for auxiliary map layers, etc.
+			// Points are inserted relative to the latest robot pose, so
+			// observations taken while moving stay consistent:
+			mp2p_icp_filters::apply_generators(m_generator, *ipt.observation, mm, relPose);
 
 			// per-observation filtering:
 			mp2p_icp_filters::apply_filter_pipeline(m_per_obs_pipeline, mm);
@@ -175,6 +208,17 @@ void LocalObstaclesNode::on_do_publish()
 	mp2p_icp_filters::apply_filter_pipeline(m_final_pipeline, mm);
 
 	tleFilter.stop();
+
+	// Add the remembered obstacles in the blind zone, if enabled:
+	for (auto& [layer, memory] : m_memory)
+	{
+		CTimeLoggerEntry tleMem(m_profiler, "on_do_publish.obstacle_memory");
+		auto pts = mm.point_layer(layer);
+		ASSERT_(pts);
+		CSimplePointsMap remembered;
+		memory.update(*pts, curRobotPose, obs.rbegin()->first, remembered);
+		pts->insertAnotherMap(&remembered, mrpt::poses::CPose3D::Identity());
+	}
 
 	// Publish them:
 	for (auto& e : layer2topic_)
@@ -277,7 +321,7 @@ void LocalObstaclesNode::on_do_publish()
 			const InfoPerTimeStep& ipt = o.second;
 			// Relative pose in the past:
 			mrpt::poses::CPose3D relPose(mrpt::poses::UNINITIALIZED_POSE);
-			relPose.inverseComposeFrom(ipt.robot_pose, curRobotPose);
+			relPose.inverseComposeFrom(*ipt.robot_pose, curRobotPose);
 
 			mrpt::viz::CSetOfObjects::Ptr gl_axis =
 				mrpt::viz::stock_objects::CornerXYZSimple(0.9, 2.0);
@@ -345,46 +389,13 @@ void LocalObstaclesNode::on_new_sensor_laser_2d(
 	auto stamp = scan->header.stamp;
 	const double timestamp = stamp.sec + static_cast<double>(stamp.nanosec) / 1e9;
 
-	// Get robot pose at that time in the reference frame, typ: /odom ->
-	// /base_link
-	mrpt::poses::CPose3D robotPose;
-	try
-	{
-		CTimeLoggerEntry tle3(m_profiler, "onNewSensor_Laser2D.lookupTransform_robot");
-
-		geometry_msgs::msg::TransformStamped robotTfStamp;
-		try
-		{
-			robotTfStamp = m_tf_buffer->lookupTransform(
-				m_frameid_reference, m_frameid_robot, tf2::TimePointZero);
-		}
-		catch (const tf2::ExtrapolationException& ex)
-		{
-			RCLCPP_ERROR(get_logger(), "%s", ex.what());
-			return;
-		}
-
-		robotPose = [&]()
-		{
-			tf2::Transform tx;
-			tf2::fromMsg(robotTfStamp.transform, tx);
-			return mrpt::ros2bridge::fromROS(tx);
-		}();
-
-		RCLCPP_DEBUG(
-			get_logger(), "[onNewSensor_Laser2D] robot pose %s", robotPose.asString().c_str());
-	}
-	catch (const tf2::TransformException& ex)
-	{
-		RCLCPP_ERROR(get_logger(), "%s", ex.what());
-		return;
-	}
-
 	// Insert into the observation history:
 	InfoPerTimeStep ipt;
 	ipt.sourceTopic = topicName;
 	ipt.observation = obsScan;
-	ipt.robot_pose = robotPose;
+	ipt.stamp = stamp;
+	// The robot pose at that time, if already known (otherwise, see on_do_publish()):
+	ipt.robot_pose = robot_pose_at(stamp);
 
 	{
 		std::lock_guard<std::mutex> lck(m_hist_obs_mtx);
@@ -437,52 +448,51 @@ void LocalObstaclesNode::on_new_sensor_pointcloud(
 	auto stamp = pts->header.stamp;
 	const double timestamp = stamp.sec + static_cast<double>(stamp.nanosec) / 1e9;
 
-	// Get robot pose at that time in the reference frame, typ: /odom ->
-	// /base_link
-	mrpt::poses::CPose3D robotPose;
-	try
-	{
-		CTimeLoggerEntry tle3(m_profiler, "onNewSensor_pointcloud.lookupTransform_robot");
-
-		geometry_msgs::msg::TransformStamped robotTfStamp;
-		try
-		{
-			robotTfStamp = m_tf_buffer->lookupTransform(
-				m_frameid_reference, m_frameid_robot, tf2::TimePointZero);
-		}
-		catch (const tf2::ExtrapolationException& ex)
-		{
-			RCLCPP_ERROR(get_logger(), "%s", ex.what());
-			return;
-		}
-
-		robotPose = [&]()
-		{
-			tf2::Transform tx;
-			tf2::fromMsg(robotTfStamp.transform, tx);
-			return mrpt::ros2bridge::fromROS(tx);
-		}();
-
-		RCLCPP_DEBUG(
-			get_logger(), "[onNewSensor_pointcloud] robot pose %s", robotPose.asString().c_str());
-	}
-	catch (const tf2::TransformException& ex)
-	{
-		RCLCPP_ERROR(get_logger(), "%s", ex.what());
-		return;
-	}
-
 	// Insert into the observation history:
 	InfoPerTimeStep ipt;
 	ipt.sourceTopic = topicName;
 	ipt.observation = obsPts;
-	ipt.robot_pose = robotPose;
+	ipt.stamp = stamp;
+	// The robot pose at that time, if already known (otherwise, see on_do_publish()):
+	ipt.robot_pose = robot_pose_at(stamp);
 
 	{
 		std::lock_guard<std::mutex> lck(m_hist_obs_mtx);
 		m_hist_obs.insert(m_hist_obs.end(), obs_list_t::value_type(timestamp, ipt));
 	}
 }  // end on_new_sensor_pointcloud
+
+std::optional<mrpt::poses::CPose3D> LocalObstaclesNode::robot_pose_at(
+	const builtin_interfaces::msg::Time& stamp)
+{
+	CTimeLoggerEntry tle(m_profiler, "robot_pose_at");
+	try
+	{
+		const auto tx = m_tf_buffer->lookupTransform(
+			m_frameid_reference, m_frameid_robot, tf2_ros::fromMsg(stamp));
+		tf2::Transform t;
+		tf2::fromMsg(tx.transform, t);
+		return mrpt::ros2bridge::fromROS(t);
+	}
+	catch (const tf2::TransformException&)
+	{
+		return std::nullopt;
+	}
+}
+
+double LocalObstaclesNode::latest_robot_pose_stamp()
+{
+	try
+	{
+		const auto tx =
+			m_tf_buffer->lookupTransform(m_frameid_reference, m_frameid_robot, tf2::TimePointZero);
+		return tx.header.stamp.sec + tx.header.stamp.nanosec * 1e-9;
+	}
+	catch (const tf2::TransformException&)
+	{
+		return 0;
+	}
+}
 
 // read params from parameter server
 void LocalObstaclesNode::read_parameters()
@@ -508,6 +518,10 @@ void LocalObstaclesNode::read_parameters()
 	RCLCPP_INFO(
 		get_logger(), "one_observation_per_topic: %s",
 		m_one_observation_per_topic ? "true" : "false");
+
+	this->declare_parameter<double>("tf_max_wait", m_tf_max_wait);
+	this->get_parameter("tf_max_wait", m_tf_max_wait);
+	RCLCPP_INFO(get_logger(), "tf_max_wait: %f", m_tf_max_wait);
 
 	this->declare_parameter<double>("publish_period", 0.05);
 	this->get_parameter("publish_period", m_publish_period);
@@ -568,6 +582,81 @@ void LocalObstaclesNode::read_parameters()
 
 		// Create publisher for local map point cloud:
 		e.pub = this->create_publisher<sensor_msgs::msg::PointCloud2>(e.topic, 10);
+	}
+
+	// Optional memory of obstacles in the sensors blind zone:
+	// --------------------------------------------------------
+	std::string memory_layers;
+	this->declare_parameter<std::string>("memory_layers", memory_layers);
+	this->get_parameter("memory_layers", memory_layers);
+	RCLCPP_INFO(get_logger(), "memory_layers: '%s'", memory_layers.c_str());
+
+	// "x_min, y_min, x_max, y_max" (robot frame):
+	std::string memory_region_str;
+	this->declare_parameter<std::string>("memory_region", memory_region_str);
+	this->get_parameter("memory_region", memory_region_str);
+	std::vector<std::string> memory_region;
+	mrpt::system::tokenize(memory_region_str, ", \t\r\n", memory_region);
+
+	// "x_min, y_min, x_max, y_max" (robot frame):
+	std::string memory_self_box_str;
+	this->declare_parameter<std::string>("memory_self_box", memory_self_box_str);
+	this->get_parameter("memory_self_box", memory_self_box_str);
+	std::vector<std::string> memory_self_box;
+	mrpt::system::tokenize(memory_self_box_str, ", \t\r\n", memory_self_box);
+
+	mrpt_pointcloud_pipeline::ObstacleMemory::Parameters mp;
+	this->declare_parameter<double>("memory_max_age", mp.max_age);
+	this->get_parameter("memory_max_age", mp.max_age);
+
+	double voxel_size = mp.voxel_size;
+	this->declare_parameter<double>("memory_voxel_size", voxel_size);
+	this->get_parameter("memory_voxel_size", voxel_size);
+	mp.voxel_size = static_cast<float>(voxel_size);
+
+	int min_hits = static_cast<int>(mp.min_hits);
+	this->declare_parameter<int>("memory_min_hits", min_hits);
+	this->get_parameter("memory_min_hits", min_hits);
+	mp.min_hits = static_cast<unsigned int>(std::max(1, min_hits));
+
+	double store_margin = mp.store_margin;
+	this->declare_parameter<double>("memory_store_margin", store_margin);
+	this->get_parameter("memory_store_margin", store_margin);
+	mp.store_margin = static_cast<float>(store_margin);
+
+	std::vector<std::string> lstMemLayers;
+	mrpt::system::tokenize(memory_layers, ", \t\r\n", lstMemLayers);
+	if (!lstMemLayers.empty())
+	{
+		ASSERTMSG_(
+			memory_region.size() == 4,
+			"memory_region must be \"x_min, y_min, x_max, y_max\" (robot frame)");
+		mp.region_min_x = std::stof(memory_region[0]);
+		mp.region_min_y = std::stof(memory_region[1]);
+		mp.region_max_x = std::stof(memory_region[2]);
+		mp.region_max_y = std::stof(memory_region[3]);
+		if (!memory_self_box.empty())
+		{
+			ASSERTMSG_(
+				memory_self_box.size() == 4,
+				"memory_self_box must be \"x_min, y_min, x_max, y_max\" (robot frame)");
+			mp.self_min_x = std::stof(memory_self_box[0]);
+			mp.self_min_y = std::stof(memory_self_box[1]);
+			mp.self_max_x = std::stof(memory_self_box[2]);
+			mp.self_max_y = std::stof(memory_self_box[3]);
+		}
+		RCLCPP_INFO(
+			get_logger(),
+			"memory_region: [%.2f, %.2f, %.2f, %.2f] memory_self_box: [%.2f, %.2f, %.2f, %.2f] "
+			"memory_max_age: %.1f s memory_voxel_size: %.2f m memory_store_margin: %.2f m "
+			"memory_min_hits: %u",
+			mp.region_min_x, mp.region_min_y, mp.region_max_x, mp.region_max_y, mp.self_min_x,
+			mp.self_min_y, mp.self_max_x, mp.self_max_y, mp.max_age, mp.voxel_size, mp.store_margin,
+			mp.min_hits);
+	}
+	for (const auto& layer : lstMemLayers)
+	{
+		m_memory[layer].params = mp;
 	}
 }
 
