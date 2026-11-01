@@ -2,6 +2,9 @@
 Changelog for package mrpt_tps_astar_planner_node
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.8.0 (2026-11-01)
+------------------
+
 2.7.0 (2026-10-29)
 ------------------
 * Adapt to mrpt_path_planning 2.x (NavEngine removed); nodes are now composable.
