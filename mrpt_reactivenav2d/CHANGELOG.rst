@@ -2,6 +2,9 @@
 Changelog for package mrpt_reactivenav2d
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.8.0 (2026-11-01)
+------------------
+
 2.7.0 (2026-10-29)
 ------------------
 * Deprecate mrpt_reactivenav2d; add goal manager robustness integration tests
