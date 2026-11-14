@@ -30,7 +30,8 @@ uint8 level
 #   waiting), goal_in_collision, invalid_goal, no_robot_pose, no_path,
 #   path_published (one-shot planning only), no_progress, follower_blocked,
 #   follower_failed, too_many_restarts, planning_error, replaced, canceled,
-#   reached, waiting_partial_path, searching, robot_not_moving
+#   reached, waiting_partial_path, searching, robot_not_moving,
+#   waiting_obstacle (BLOCKED, a goal that waits instead of detouring)
 string reason
 string message           # human-readable, one line
 
@@ -51,6 +52,11 @@ float32 eta                     # [s] rough estimate along the path (NaN if unkn
 float32 time_since_progress     # [s]
 float32 no_progress_timeout     # [s] (<=0: disabled)
 uint16 replans                  # search restarts for this goal
+
+# Waypoint sequences (total_waypoints == 0: a single goal). `goal` is then the
+# waypoint being driven to, and the measurements above refer to it:
+uint16 total_waypoints
+uint16 reached_waypoints        # also skipped ones
 
 # Follower (as last reported):
 string follower_status
