@@ -87,6 +87,16 @@ def generate_launch_description():
         default_value='0.5',
         description='How long an observation waits for the robot pose at its time before being dropped [s]'
     )
+    max_input_age_arg = DeclareLaunchArgument(
+        'max_input_age',
+        default_value='0.0',
+        description='If >0, nothing is published while the latest observation of some input topic (one that has published before) is older than this, so consumers checking the age of the output (e.g. the trajectory follower collision guard) stop when any sensor stalls [s]'
+    )
+    republish_unchanged_arg = DeclareLaunchArgument(
+        'republish_unchanged',
+        default_value='true',
+        description='Publish the last output again every publish_period while there are no new observations (new observations are always published right away)'
+    )
     pipeline_yaml_file_arg = DeclareLaunchArgument(
         'pipeline_yaml_file',
         default_value=os.path.join(
@@ -154,6 +164,8 @@ def generate_launch_description():
             {'confirm_radius': LaunchConfiguration('confirm_radius')},
             {'confirm_max_age': LaunchConfiguration('confirm_max_age')},
             {'tf_max_wait': LaunchConfiguration('tf_max_wait')},
+            {'max_input_age': LaunchConfiguration('max_input_age')},
+            {'republish_unchanged': LaunchConfiguration('republish_unchanged')},
         ],
         arguments=['--ros-args', '--log-level',
                    LaunchConfiguration('log_level')],
@@ -186,6 +198,8 @@ def generate_launch_description():
                     {'confirm_radius': LaunchConfiguration('confirm_radius')},
                     {'confirm_max_age': LaunchConfiguration('confirm_max_age')},
                     {'tf_max_wait': LaunchConfiguration('tf_max_wait')},
+                    {'max_input_age': LaunchConfiguration('max_input_age')},
+                    {'republish_unchanged': LaunchConfiguration('republish_unchanged')},
                 ],
             )
         ]
@@ -212,6 +226,8 @@ def generate_launch_description():
         confirm_radius_arg,
         confirm_max_age_arg,
         tf_max_wait_arg,
+        max_input_age_arg,
+        republish_unchanged_arg,
         mrpt_pointcloud_pipeline_node,
         composable_mrpt_pointcloud_pipeline,
     ])
