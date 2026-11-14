@@ -24,11 +24,17 @@ list and responsibilities:
   candidate points built from other observations had one that close (one-off
   artifacts are dropped; `confirm_max_age` must exceed `time_window` unless
   `one_observation_per_topic`). The local map is only rebuilt when the
-  observations change (otherwise the last one is republished).
+  observations change: a new one with its robot pose already known is built
+  and published right away from its own callback; the `publish_period` timer
+  places those waiting for their pose and, unless `republish_unchanged` is
+  false, republishes the last output.
   Each observation is placed with the robot pose at its timestamp (waiting
   up to `tf_max_wait` for it, then dropping the observation), and the local
   map is built relative to the pose of the latest observation (the published
   stamp).
+  With `max_input_age`, nothing is published while some input topic that has
+  published before has no observation that recent (a stalled sensor is not
+  masked by fresh data from the others).
   All observations go through one map: `per_observation` pipelines must end
   with a `FilterDeleteLayer` of their own layers, or later observations merge
   their points again.
@@ -39,14 +45,18 @@ list and responsibilities:
   ignored (`ignore_obstacles_in`). `PoseStamped` goals (topic, `make_plan_to`)
   are transformed into `frame_id_map` with TF (`goal_frame.hpp`; empty
   `frame_id` = map frame, unknown frame = rejected).
-  Goals from the topic or the `NavigateGoal` action go to a goal manager
-  thread (`goal_manager.cpp`): anytime partial paths, then continuous
+  Goals from the topic or the `NavigateGoal` action, and waypoint sequences
+  from `NavigateWaypoints` (one goal id, the target switches to the next
+  waypoint before reaching the current one, without stopping), go to a goal
+  manager thread (`goal_manager.cpp`): anytime partial paths, then continuous
   replanning re-rooting the search ahead of the robot, published as
   `ReferencePath` (committed part never changes); searches from a moving
   robot start ahead of it on its path (`start_lookahead_time`); goals in
   collision are rejected; blocked paths and failed searches are replanned
   until `no_progress_timeout` passes without getting closer to the goal
-  (obstacles that blocked a path are remembered for a while).
+  (obstacles that blocked a path are remembered for a while). Waypoint
+  goals with `wait_if_blocked` never replan around obstacles: the path is cut
+  before them, the search paused, and the full path given back once clear.
   Services stay one-shot.
   It publishes `~/navigation_status` and `~/navigation_markers` (see its
   README); topic goals received while the PTGs are being built are queued.
